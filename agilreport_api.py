@@ -7,6 +7,69 @@ import os
 
 from Agil_Template import Template
 
+class ao_report_json_files(object):
+    
+    def __init__(self, dic_json):
+        self.name = dic_json['name']
+        self.report_id = dic_json['report_id']
+
+  
+class oerp_report():
+    
+    def init_class(self, cr, uid, pool, datas, report_name='', report_def_id=0): 
+        
+        self.pool = pool 
+        self.cursor = cr
+        self.user_id = uid
+        
+        ref_report = {'model':'report.def',
+                      'name':report_name,
+                      'id':report_def_id}
+        
+        report = self.get_object_model(ref_report)
+        
+        ref_company = {'model':'res.company',
+                      'id':1}
+        
+        company = self.get_object_model(ref_company)
+        
+        ref_user = {'model':'res.users',
+                      'id':uid}
+        
+        user = self.get_object_model(ref_user)
+        ao_api = ao_report_api()
+        cur_report = ao_api.init_class(self.cursor, datas, report, company, user)
+ 
+        today = datetime.datetime.now()
+        time_now = str(today.time())[0:8]
+        name_file = report_name + "_" + str(today.date()) + "_" + time_now + ".json"
+        
+        # Write JSON file 
+        cur_report.to_json(name_file, report)
+        id_file_created = self.save_json_file_name(name_file, cur_report.report.id)
+        print("file id:", id_file_created)
+        return [cur_report, id_file_created]
+    
+    def get_object_model(self, my_model):
+        report_pool = self.pool.get(my_model['model'])
+        if my_model.has_key('name'):
+            id = report_pool.search(self.cursor, self.user_id, [('name', '=', my_model['name'])])
+        else:
+            id = report_pool.search(self.cursor, self.user_id, [('id', '=', my_model['id'])])
+        
+        if id:
+            all_objects = report_pool.browse(self.cursor, self.user_id, id)  
+            return all_objects[0] 
+        else:
+            return None         
+
+    def save_json_file_name(self, name_file, report_id):
+        id_file = self.pool.get('report.def.json_files').create(self.cursor,
+                                                                self.user_id,
+                                                                {'name':name_file, 'report_id':report_id})
+        return id_file
+    
+
 class json_to_report():
     
     
