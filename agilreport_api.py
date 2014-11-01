@@ -16,38 +16,29 @@ class ao_report_json_files(object):
   
 class oerp_report():
     
-    def init_class(self, cr, uid, pool, datas, report_name='', report_def_id=0): 
+    def start_report(self,attributes):
         
-        self.pool = pool 
-        self.cursor = cr
-        self.user_id = uid
+        self.pool = attributes.get('pool')
+        self.cursor = attributes.get('cr')
+        datas  = attributes.get('datas',None)
+        report  = attributes.get('report',None)
+        user    = attributes.get('user',None)
+        company = attributes.get('company',None)
+        context = attributes.get('context',None)
+        record_list = attributes.get('record_list',None)
         
-        ref_report = {'model':'report.def',
-                      'name':report_name,
-                      'id':report_def_id}
-        
-        report = self.get_object_model(ref_report)
-        
-        ref_company = {'model':'res.company',
-                      'id':1}
-        
-        company = self.get_object_model(ref_company)
-        
-        ref_user = {'model':'res.users',
-                      'id':uid}
-        
-        user = self.get_object_model(ref_user)
-        ao_api = ao_report_api()
-        cur_report = ao_api.init_class(self.cursor, datas, report, company, user)
+        self.user_id = user.id
+        ao_api = ao_report_api(attributes)
+        cur_report = ao_api.cur_report
  
-        today = datetime.datetime.now()
-        time_now = str(today.time())[0:8]
-        name_file = report_name + "_" + str(today.date()) + "_" + time_now + ".json"
+        today     = datetime.datetime.now()
+        time_now  = str(today.time())[0:8]
+        name_file = report.name + "_" + str(today.date()) + "_" + time_now + ".json"
         
         # Write JSON file 
         cur_report.to_json(name_file, report)
         id_file_created = self.save_json_file_name(name_file, cur_report.report.id)
-        print("file id:", id_file_created)
+        print("file id:", name_file,id_file_created)
         return [cur_report, id_file_created]
     
     def get_object_model(self, my_model):
@@ -101,7 +92,7 @@ class json_to_report():
             footer_bloc_repeted = copy.deepcopy(self.template.get_footer_bloc(self.template.get_repeted_bloc()))
         
         self.data = self.read_json_file(self.path_json_file)
-        pages     = self.data["Report"]["Pages"]
+        pages  = self.data["Report"]["Pages"]
         nombre_page = len(pages.keys())
         self.template.duplicate_page(nombre_page)
         
@@ -170,7 +161,7 @@ class ao_report(object):
             self.col_totals = dic_report['col_totals']
             self.col_sections = dic_report['col_sections']
             
-            myKey='report_context'
+            myKey = 'report_context'
             if dic_report.has_key(myKey):
                 self.report_context = dic_report[myKey]
             else:
@@ -236,65 +227,42 @@ class ao_report_json_files(object):
         self.name = dic_json['name']
         self.report_id = dic_json['report_id']
 
-class py_report():
-    
-    def init_class(self, cursor, datas, report, company, user): 
-        self.cursor = cursor
-        self.user_id = user.id
-        ao_api = ao_report_api()
-        return ao_api.init_class(self.cursor, datas, report, company, user)
-  
 
 class ao_report_api():
     
-    def init_class(self, cursor, datas, report, company, user):
-
-        self.user_id = user.id 
-        self.result = {}
-        self.report_context = {}
-        self.cursor = cursor
-        report_name = report.name
+    def __init__(self,attributes):
+        self.cursor = attributes.get('cr')
         
+        datas  = attributes.get('datas',None)
+        report  = attributes.get('report',None)
+        user    = attributes.get('user',None)
+        company = attributes.get('company',None)
+        context = attributes.get('context',None)
+        record_list = attributes.get('record_list',None)
+        
+        self.user_id = user.id
+        self.report_context = {}
+        
+        report_name = report.name
         self.report_context = self.update_context('report', report)
         self.report_context = self.update_context('company', company)
         self.report_context = self.update_context('user', user)
         self.report_context = self.update_context('datas', datas)
-    
-    
-        # Execute query
-        cur_report = current_report(self.report_context)
-        query = cur_report.replace_form_values(cur_report.report.query)
-        self.cursor.execute(query)
-        self.result = self.cursor.dictfetchall() 
-         
-        max_bloc_details = cur_report.get_max_bloc_section('Details')
-        
-        for record in self.result:
-         
-            # process Heard first time
-            if cur_report.page_number == 0:
-                # create a new page
-                cur_report.new_page(record)
-                 
-            # process body for any record      
-            cur_report.evaluate_fields('Details', record)
-            cur_report.bloc_number += 1 
+        for key,value in context.iteritems():
+            self.report_context = self.update_context(key, value)
             
-            # process footer only after the last bloc  
-            # FIXME
-            if cur_report.bloc_number > max_bloc_details:
-                cur_report.bloc_number = 1 
-                # end of page
-                cur_report.end_page(record)
-                # Create a next page
-                cur_report.new_page(record)
-                
-        if (cur_report.page_number > 0):
-            cur_report.bloc_number = 1 
-            cur_report.end_page(record)
-            
-        return cur_report
-    
+
+        # Execute query - if query is valid
+        self.cur_report = current_report(self.report_context)
+        if self.cur_report.report.type == 'normal':
+            query = self.cur_report.query_prepare()
+            self.cursor.execute(query)
+            self.result = self.cursor.dictfetchall()
+        elif self.cur_report.report.type == 'user':
+            self.result = record_list
+              
+        self.cur_report.print_record_list(self.result)
+   
     def update_context(self, key_context, val_context):
         self.report_context[key_context] = val_context
         return self.report_context
@@ -323,7 +291,7 @@ class ao_report_api():
         return ' '
         
                     
-class current_page():
+class current_page_xxx():
     def __init__(self, cur_report):
         self.my_page = cur_report
         
@@ -341,7 +309,8 @@ class current_report():
         self.context = context
         self.context['current_report'] = self
         
-        self.form_lst_fields = self.form_fields('Form')
+        self.form_lst_fields = self.get_source_data_fields('Form')
+        self.context_lst_fields = self.get_source_data_fields('Context')
         
         self.section_names = { 'Report_header': self.get_section_fields('Report_header'),
                                'Page_header'  : self.get_section_fields('Page_header'),
@@ -355,9 +324,45 @@ class current_report():
                                  'Sum':'sum_total',
                                  'Average':'average_total',
                                  }
+        
+        self.max_bloc_details = self.get_max_bloc_section('Details')
         self.init_totals()
+        self.key_group()
+    
+    def query_prepare(self):
+        query = self.report.query
+        query = self.str_replace_values(self.form_lst_fields,'@form',query)
+        query = self.str_replace_values(self.context_lst_fields,'@context',query)
+        return query 
     
     
+    def str_replace_values(self,lst_fields,filter, str_query):
+        for field in lst_fields:
+            str_search = filter + '.' + field.name
+            value = self.load_field_value(field)
+            str_value = self.format_value(field,value)
+            str_query = str_query.replace(str_search, str_value)
+        return str_query
+    
+    def string_to_value(self,value):
+        n_value = 0
+        if value:
+            try: 
+               n_value = float(value)
+    
+            except ValueError:
+               n_value = 0
+        return n_value
+    
+    def format_value(self,field,value):
+        print 'format_value',field.name,field.field_type,value
+        if field.field_type == 'Number':
+            value = str(value)
+        else:
+            value = "'" + value + "'"
+        return value
+    
+            
     def get_max_bloc_section(self, section_name):
         max_bloc = 1 
         for max_bloc_section in self.report.section_bloc_ids:
@@ -381,11 +386,15 @@ class current_report():
             my_total['reset_repeat_section'] = total.reset_repeat_section
             self.totals[total.name] = self.reset_total(my_total)
             
+    
+      
+            
     def total_calculate(self, field, value):
         total_name = field.total_id.name
         my_total = self.totals[total_name]
         if my_total['function'] == 'Sum':
-                my_total['total'] = my_total['total'] + value
+                my_total['total'] = my_total['total'] + self.string_to_value(value)
+                print 'total',total_name,my_total['total'],value
         
         if my_total['function'] == 'Count':
             my_total['total'] = my_total['total'] + 1
@@ -399,15 +408,15 @@ class current_report():
         '''
         reset totals for given total and a list functions
         '''
-        my_total['total'] = 0
+        my_total['total'] = 0.
         return my_total
       
     def get_section_name(self, section_name):
         if self.section_names.has_key(section_name):
             return self.section_names[section_name]
     
-    def field_objectxxxxxxxxxxx(self, field_id, section_name='Details'):
-        lst_fields = self.get_section_name(section_name)
+    #def field_objectxxxxxxxxxxx(self, field_id, section_name='Details'):
+    #    lst_fields = self.get_section_name(section_name)
         
     def number(self):
         return self.page_number
@@ -436,29 +445,89 @@ class current_report():
                 section_list[field.name] = field
         return section_list
     
-    def form_fields(self, type_value):
+    def get_source_data_fields(self, type_value):
         lst_fields = []
         for field in self.report.field_ids:
             if field.source_data == type_value:
                 lst_fields.append(field)
         return lst_fields
     
+    
+    def sort_record_list(self,results):
+       
+        list_records = []
+        all_lists    = []
+        key_name = ""
+        
+        if(self.field_key_group) and len(results)>0:
+            key_name = self.field_key_group[0]
+            first_record = results[0]
+            key_value_change = first_record[key_name]
+            for record in results:
+                print 'sort_record_list',record
+                if record[key_name]==key_value_change:
+                    list_records.append(record)
+                else:
+                    all_lists.append(list_records)
+                    list_records=[]
+                    list_records.append(record)
+                    key_value_change = record[key_name]
+             
+            if len(list_records)>0:
+                all_lists.append(list_records)
+        else:
+            if len(results):
+                all_lists.append(results)
+
+        return all_lists
+
+
+    def print_record_list(self,results):
+        all_lists = self.sort_record_list(results)
+        for list_record in all_lists:
+            for record in list_record:
+                self.print_record(record)
+            self.print_end(record)
+    
+    def print_record(self,record):
+        if self.page_number == 0:
+            print 'init premiere page',self.page_number
+            # create a new first page
+            self.new_page(record)
+        
+        if self.bloc_number >  self.max_bloc_details:
+            print 'find de  page',self.page_number,self.bloc_number
+            self.end_page(record)
+            # Create a next page
+            print 'nouvelle  page',self.page_number,self.bloc_number
+            self.new_page(record)
+        
+        # process body for any record
+        print 'ligne record page ',self.page_number,self.bloc_number
+        self.evaluate_fields('Details',record)
+        self.bloc_number += 1 
+    
+    def print_end(self,record):
+        if self.page_number > 0: 
+            print 'fin de la derniere page ',self.page_number,self.bloc_number
+            while self.bloc_number <= self.max_bloc_details:
+                self.evaluate_fields('Details',False)
+                self.bloc_number += 1 
+                
+            self.end_page(record)
+ 
     def new_page(self, record):
         self.page_number += 1
+        self.bloc_number = 1
         self.evaluate_fields('Report_header', record)
         self.evaluate_fields('Page_header', record)
         
     def end_page(self, record):
+        self.bloc_number = 1
         self.evaluate_fields('Page_footer', record)
         self.evaluate_fields('Report_footer', record)
     
-    def replace_form_values(self, str_query):
-        
-        for parm in self.form_lst_fields:
-            str_search = '@form.' + parm.name
-            str_value = "'" + self.value_from_form(parm.name.rstrip()) + "'"
-            str_query = str_query.replace(str_search, str_value)
-        return str_query
+    
     
     def get_page(self, page_number):
         key_page = 'Page' + str(page_number)
@@ -526,7 +595,28 @@ class current_report():
         except OSError:
             pass
             return True
- 
+        
+    def key_group(self):
+        self.field_key_group = []
+        for section_name in self.section_names:
+            section_list = self.get_section_fields(section_name)
+            for key_name,field in section_list.items():
+                if field.group == True:
+                    self.field_key_group.append(field.name)
+                    print "test key group",field.name
+        return self.field_key_group
+    
+    
+    def key_group_value(self,record):
+        ref_value = ''
+        for field in self.field_key_group:
+            print "key_group_value",field
+            value = self.load_field_value(field,record)
+            ref_value = ref_value + value
+        return ref_value
+     
+    
+   
     def evaluate_fields(self, section_name, record):
         
         section_list = self.get_section_fields(section_name)
@@ -544,15 +634,26 @@ class current_report():
     
     def value_from_model(self, field, record):
         if record.has_key(field.name):
+            print 'value_from_model',field.name
             return record[field.name]
         else:
             return 'error field' + field.name
     
-    def value_from_form(self, field_id):
-        if self.form_data.has_key(field_id):
-            return self.form_data[field_id]
+    def value_from_context(self,field): 
+        value = ''
+        if field:
+            try:
+                print 'value_from_context',field.name,field.expression
+                value = eval(field.expression, self.context)
+            except SyntaxError:
+                value = ''
+        return value 
+    
+    def value_from_form(self, field):
+        if self.form_data.has_key(field.name):
+            return self.form_data[field.name]
         else: 
-            return 'error form data' + field_id
+            return 'error value from form : ' + field.name
     
     def value_from_total(self, field):
         value = ''
@@ -564,16 +665,21 @@ class current_report():
                 
         return value
     
-    def load_field_value(self, field, record):
+    def load_field_value(self, field, record=False):
         value = ''
-        if field.source_data == 'Model':
-            value = self.value_from_model(field, record)
-            
+        if record:
+            if field.source_data == 'Model':
+                value = self.value_from_model(field, record)
+                
         if field.source_data == 'Form':
-            value = self.value_from_form(field.name)
+            value = self.value_from_form(field)
+        
+        if field.source_data == 'Context':
+            value = self.value_from_context(field)
         
         if field.source_data == 'Total':
             value = self.value_from_total(field)
+            print 'print total = ',field.name,value
             
         return value
     
