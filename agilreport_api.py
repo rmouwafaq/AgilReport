@@ -93,32 +93,26 @@ class json_to_report():
         
         self.data = self.read_json_file(self.path_json_file)
         pages  = self.data["Report"]["Pages"]
+        images = self.data["Report"]["Images"]
         nombre_page = len(pages.keys())
         self.template.duplicate_page(nombre_page)
-        
         page_index = 0
         for page_key,page_value in pages.iteritems():
+            
             #------------------section Report header ----------------------
-            self.data_merge_section(self.template,page_index,page_value,'Report_header')
+            self.data_merge_section(self.template,page_index,page_value,images,'Report_header')
             
             #------------------section Page Header ---------------------- 
-            self.data_merge_section(self.template,page_index,page_value,'Page_header')
+            self.data_merge_section(self.template,page_index,page_value,images,'Page_header')
              
-            #------------------section Details ----------------------
-            nbr_bloc = len(pages[page_key]["Details"].keys())
-            self.template.duplicate_bloc(page_index,nbr_bloc,modele_bloc,footer_bloc_repeted)
-            page_values = {}
-            k=0
-            for key_bloc,val_bloc in page_value["Details"].iteritems():
-                page_values[k]=val_bloc
-                k+=1
-            self.template.set_val_bloc_repeted(page_index,page_values)
+            #------------------section Details --------------------------
+            self.data_merge_section(self.template,page_index,page_value,images,'Details')
          
             #------------------section Page footer ----------------------
-            self.data_merge_section(self.template,page_index,page_value,'Page_footer')
+            self.data_merge_section(self.template,page_index,page_value,images,'Page_footer')
              
             #------------------section Report footer ----------------------
-            self.data_merge_section(self.template,page_index,page_value,'Report_footer')
+            self.data_merge_section(self.template,page_index,page_value,images,'Report_footer')
                 
             #---------------------------------------------------------
             page_index=page_index+1
@@ -127,9 +121,9 @@ class json_to_report():
         
         
     
-    def data_merge_section(self,temp,page_index,page_value,report_section):   
+    def data_merge_section(self,temp,page_index,page_value,images,report_section):   
         for key_bloc,val_bloc in page_value[report_section].iteritems():
-            temp.set_values_section(page_index,report_section,val_bloc) 
+            temp.set_values_section(page_index,report_section,images,key_bloc,val_bloc) 
         
     def read_json_file(self,path):
         data_file =""
@@ -140,6 +134,8 @@ class json_to_report():
         return json_data
     
 
+
+    
 class ao_report(object):
     
     def __init__(self, dic_report=None):

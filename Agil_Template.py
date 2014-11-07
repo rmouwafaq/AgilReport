@@ -162,15 +162,16 @@ class Template(object):
                 if(value.has_key(id_bloc['id'])):
                     id_bloc.string=str(value[id_bloc['id']]) 
     
-    def set_values_section(self,page_index,section_name,values_id):
+    def set_values_section(self,page_index,section_name,images,key_bloc,values_bloc):
         pages=self.content_html.find_all(attrs={"class":"Page"})
         section=pages[page_index].find(attrs={"class":section_name})
-        
-        for key,value in values_id.iteritems():
-            if(section.find(id=key)):
-                if(section.find(id=key).name=="img"):
-                    tag_img=section.find(id=key)
-                    tag_img["src"]="data:image/jpeg;base64,"+str(value)
+        bloc=section.find(attrs={"class":key_bloc})
+        for key,value in values_bloc.iteritems():
+            
+            if(bloc.find(id=key)):
+                if(bloc.find(id=key).name=="img"):
+                    tag_img=bloc.find(id=key)
+                    tag_img["src"]="data:image/jpeg;base64,"+str(images[key])
                 else:
-                    section.find(id=key).string=str(value).encode("utf-8")
+                    bloc.find(id=key).string=str(value).encode("utf-8")
             
