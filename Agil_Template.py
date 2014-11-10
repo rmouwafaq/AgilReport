@@ -54,6 +54,26 @@ class Template(object):
     def get_section(self,section_name):
         return self.report_template.find(attrs={"class":section_name})
     
+    def get_max_bloc_section(self,section_name):
+        section_tag=self.get_section(section_name)
+        if(section_tag.has_key('ao-max-bloc')):
+            return section_tag['ao-max-bloc']
+        return ""        
+    
+    def get_ids_bloc(self,bloc):
+        fields={}
+        field={}
+        for element in bloc.find_all(id=True):
+            field_name=element['id']
+            source_data=""
+            type_data=""
+            if(element.has_key('ao-data-source')):
+                source_data=element['ao-data-source']
+            if(element.has_key('ao-type')):
+                type_data=element['ao-type']
+            
+            field[field_name]={'source_data':source_data,'type':type_data}
+        return field
         
     def get_class_section(self,section_name,class_name):
         section_tag = self.get_section(section_name)
