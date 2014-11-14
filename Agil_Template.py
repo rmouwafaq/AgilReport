@@ -58,15 +58,15 @@ class Template(object):
         section_tag=self.get_section(section_name)
         if(section_tag.has_key('ao-max-bloc')):
             return section_tag['ao-max-bloc']
-        return ""        
+        return "1"        
     
     def get_ids_bloc(self,bloc):
         fields={}
         field={}
         for element in bloc.find_all(id=True):
             field_name=element['id']
-            source_data=""
-            type_data=""
+            source_data="Model"
+            type_data="String"
             if(element.has_key('ao-data-source')):
                 source_data=element['ao-data-source']
             if(element.has_key('ao-type')):
