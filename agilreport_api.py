@@ -4,9 +4,9 @@ import json
 import collections
 import copy
 import os
-
+import sys
 from Agil_Template import Template
-
+sys.setrecursionlimit(10000)
 class ao_report_json_files(object):
     
     def __init__(self, dic_json):
