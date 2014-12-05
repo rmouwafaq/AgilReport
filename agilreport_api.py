@@ -116,7 +116,7 @@ class json_to_report():
                 
             #---------------------------------------------------------
             page_index=page_index+1
-        self.template.copie(self.path_name_output + self.file_template)
+       # self.template.copie(self.path_name_output + self.file_template)
        # self.template.save_pdf_from_file(self.path_name_output + self.file_template, self.path_name_output + 'pos_order_details.pdf')
         
         
@@ -133,7 +133,10 @@ class json_to_report():
         json_data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data_file)
         return json_data
     
-
+    def get_template(self):
+        return self.template
+    def save_report(self):
+        self.template.copie(self.path_name_output + self.file_template)
 
     
 class ao_report(object):
@@ -577,7 +580,11 @@ class current_report():
             pass 
         path_folder = path_folder + '/' + rep.module_id.shortdesc
         if self.create_folder(path_folder):
-            path_folder = path_folder + '/' + self.report.name
+            #folders to store html and pdf files
+            self.create_folder(path_folder+ '/' + self.report.name +'/HTML')
+            self.create_folder(path_folder+ '/' + self.report.name +'/PDF')
+            #folder to store json files
+            path_folder = path_folder + '/' + self.report.name +'/JSON'
             if self.create_folder(path_folder):
                 file_name = path_folder + '/' + file_name
                 with open(file_name, 'w') as json_file:
