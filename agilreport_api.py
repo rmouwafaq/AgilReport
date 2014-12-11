@@ -121,7 +121,7 @@ class json_to_report():
         
         
     
-    def data_merge_section(self,temp,page_index,page_value,images,report_section):   
+    def data_merge_section(self,temp,page_index,page_value,images,report_section):  
         for key_bloc,val_bloc in page_value[report_section].iteritems():
             temp.set_values_section(page_index,report_section,images,key_bloc,val_bloc) 
         
@@ -581,14 +581,15 @@ class current_report():
         path_folder = path_folder + '/' + rep.module_id.shortdesc
         if self.create_folder(path_folder):
             #folders to store html and pdf files
-            self.create_folder(path_folder+ '/' + self.report.name +'/HTML')
-            self.create_folder(path_folder+ '/' + self.report.name +'/PDF')
-            #folder to store json files
-            path_folder = path_folder + '/' + self.report.name +'/JSON'
-            if self.create_folder(path_folder):
-                file_name = path_folder + '/' + file_name
-                with open(file_name, 'w') as json_file:
-                    json.dump(myreport, json_file, indent=4)
+            if(self.create_folder(path_folder + '/' + self.report.name )):
+                self.create_folder(path_folder + '/' + self.report.name +'/HTML')
+                self.create_folder(path_folder + '/' + self.report.name +'/PDF')
+                #folder to store json files
+                path_folder = path_folder + '/' + self.report.name +'/JSON'
+                if self.create_folder(path_folder):
+                    file_name = path_folder + '/' + file_name
+                    with open(file_name, 'w') as json_file:
+                        json.dump(myreport, json_file, indent=4)
         return myreport 
     
     def create_folder(self, path_target):
