@@ -98,7 +98,6 @@ class json_to_report():
         self.template.duplicate_page(nombre_page)
         page_index = 0
         for page_key,page_value in pages.iteritems():
-            
             #------------------section Report header ----------------------
             self.data_merge_section(self.template,page_index,page_value,images,'Report_header')
             

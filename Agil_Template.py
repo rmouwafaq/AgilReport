@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 from bs4 import BeautifulSoup as soup
 import os
+import sys
 import pdfkit
 import copy
+sys.setrecursionlimit(10000)
 
 class Template(object):
     
@@ -186,12 +188,13 @@ class Template(object):
         pages=self.content_html.find_all(attrs={"class":"Page"})
         section=pages[page_index].find(attrs={"class":section_name})
         bloc=section.find(attrs={"class":key_bloc})
-        for key,value in values_bloc.iteritems():
-            
-            if(bloc.find(id=key)):
-                if(bloc.find(id=key).name=="img"):
-                    tag_img=bloc.find(id=key)
-                    tag_img["src"]="data:image/jpeg;base64,"+str(images[key])
-                else:
-                    bloc.find(id=key).string=str(value).encode("utf-8")
+        if(bloc):
+            for key,value in values_bloc.iteritems():
+                
+                if(bloc.find(id=key)):
+                    if(bloc.find(id=key).name=="img"):
+                        tag_img=bloc.find(id=key)
+                        tag_img["src"]="data:image/jpeg;base64,"+str(images[key])
+                    else:
+                        bloc.find(id=key).string=str(value).encode("utf-8")
             

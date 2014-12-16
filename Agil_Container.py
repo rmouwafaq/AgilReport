@@ -3,6 +3,8 @@ import pdfkit
 from bs4 import BeautifulSoup as soup
 from Agil_Template import Template
 import copy
+import sys
+sys.setrecursionlimit(10000)
 class Container_doc(object):
     
     def __init__(self,template,sequence,doc_type):
@@ -24,7 +26,7 @@ class Container(object):
     
     def add(self,template,doc_type = 'portrait'):
         template.__class__=Template
-        new_doc = Container_doc(copy.deepcopy(template),self.sequence,template.get_format())
+        new_doc = Container_doc(copy.copy(template),self.sequence,template.get_format())
         self.sequence = self.sequence + 1
         self.col_docs[self.sequence] = new_doc
         
