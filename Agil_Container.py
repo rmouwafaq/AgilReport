@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup as soup
 from Agil_Template import Template
 import copy
 import sys
+import datetime
 sys.setrecursionlimit(10000)
 class Container_doc(object):
     
@@ -30,9 +31,22 @@ class Container(object):
         self.sequence = self.sequence + 1
         self.col_docs[self.sequence] = new_doc
         
-    def save(self,doc_type = 'portrait',file_name = None):
+    def save(self,doc_type = 'portrait',file_name = None,save_with_date=False):
         if(self.file_name==None):
             self.file_name=file_name
+        file_html_name=""
+        if(save_with_date==True):
+            
+            decop_name1=self.file_name.split("/")
+            decop_name2=decop_name1[len(decop_name1)-1]
+            decop_name3=decop_name2.split(".")
+            path_name=""
+            for i in xrange(0,len(decop_name1)-1):
+                path_name+=decop_name1[i]+"/"
+            today = datetime.datetime.now()
+            time_now  = str(today.time())[0:8]
+            file_html_name=decop_name3[0]+str(today.date()) + "_" + time_now +"."+decop_name3[1]
+            self.file_name=path_name+file_html_name 
         str_file = soup("""<!DOCTYPE html>
             <html>
                 <head>
@@ -59,7 +73,8 @@ class Container(object):
             if self.file_name != None: 
                 with open(self.file_name, 'w+') as container_file:
                     container_file.write(str_file.prettify())
-
+        
+        return file_html_name
     def save_pdf_from_file(self,input,output,orientation='portrait'):
         options = {
                 'zoom':'0.8',
