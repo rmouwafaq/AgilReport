@@ -7,13 +7,14 @@ import os
 import sys
 from Agil_Template import Template
 sys.setrecursionlimit(10000)
+
 class ao_report_json_files(object):
     
     def __init__(self, dic_json):
         self.name = dic_json['name']
         self.report_id = dic_json['report_id']
 
-  
+#   
 class oerp_report():
     
     def start_report(self,attributes):
@@ -98,6 +99,7 @@ class json_to_report():
         self.template.duplicate_page(nombre_page)
         page_index = 0
         for page_key,page_value in pages.iteritems():
+            print page_value, page_index
             #------------------section Report header ----------------------
             self.data_merge_section(self.template,page_index,page_value,images,'Report_header')
             
@@ -164,8 +166,6 @@ class ao_report(object):
                 self.report_context = dic_report[myKey]
             else:
                 self.report_context = {}
-            
-            
             
   
     def add_fields(self, obj_field):
@@ -237,6 +237,8 @@ class ao_report_api():
         company = attributes.get('company',None)
         context = attributes.get('context',None)
         record_list = attributes.get('record_list',None)
+        
+        print "user",user.name
         
         self.user_id = user.id
         self.report_context = {}
@@ -450,10 +452,10 @@ class current_report():
                 lst_fields.append(field)
         return lst_fields
     
-    
+    # regroupement et tri des records pa cle 
     def sort_record_list(self,results):
        
-        list_records = []
+        lst_records = []
         all_lists    = []
         key_name = ""
         
@@ -462,37 +464,42 @@ class current_report():
             first_record = results[0]
             key_value_change = first_record[key_name]
             for record in results:
-                print 'sort_record_list',record
+                print 'sort_record_list',record[key_name],record
                 if record[key_name]==key_value_change:
-                    list_records.append(record)
+                    lst_records.append(record)
                 else:
-                    all_lists.append(list_records)
-                    list_records=[]
-                    list_records.append(record)
+                    all_lists.append(lst_records)
+                    lst_records=[]
+                    lst_records.append(record)
                     key_value_change = record[key_name]
              
-            if len(list_records)>0:
-                all_lists.append(list_records)
+            if len(lst_records)>0:
+                all_lists.append(lst_records)
         else:
             if len(results):
                 all_lists.append(results)
 
         return all_lists
 
-
+    # impression de la liste des records 
     def print_record_list(self,results):
         all_lists = self.sort_record_list(results)
+        print 'all lists records ', len(all_lists)
         for list_record in all_lists:
+            
             for record in list_record:
-                self.print_record(record)
+                self.print_line(record)
+                
             self.print_end(record)
-    
-    def print_record(self,record):
-        if self.page_number == 0:
+            
+            
+    def print_line(self,record):
+        if self.bloc_number == 1:
             print 'init premiere page',self.page_number
             # create a new first page
             self.new_page(record)
         
+        # checked if necessary to change page details
         if self.bloc_number >  self.max_bloc_details:
             print 'find de  page',self.page_number,self.bloc_number
             self.end_page(record)
@@ -506,14 +513,14 @@ class current_report():
         self.bloc_number += 1 
     
     def print_end(self,record):
-        if self.page_number > 0: 
-            print 'fin de la derniere page ',self.page_number,self.bloc_number
+        if self.bloc_number <=  self.max_bloc_details:
+            print 'Terminer la page en cours ',self.page_number,self.bloc_number
             while self.bloc_number <= self.max_bloc_details:
                 self.evaluate_fields('Details',False)
                 self.bloc_number += 1 
                 
             self.end_page(record)
- 
+    
     def new_page(self, record):
         self.page_number += 1
         self.bloc_number = 1
@@ -524,8 +531,7 @@ class current_report():
         self.bloc_number = 1
         self.evaluate_fields('Page_footer', record)
         self.evaluate_fields('Report_footer', record)
-    
-    
+        
     
     def get_page(self, page_number):
         key_page = 'Page' + str(page_number)
@@ -568,15 +574,19 @@ class current_report():
             return ' '
         
     def to_json(self, file_name, rep):
+        
         report_pages = collections.OrderedDict()
         myreport = collections.OrderedDict()
         
         report_pages['Pages'] = self.pages 
         report_pages['Images'] = self.images
         myreport['Report'] = report_pages
-        path_folder = os.getcwd() + '/openerp/addons/report_def_store/static/reports'
+        
+        # Creates the file directories for managing different types of report
+        path_folder = os.getcwd() + '/openerp/addons/report_def/static/reports'
         if self.create_folder(path_folder):
             pass 
+        
         path_folder = path_folder + '/' + rep.module_id.shortdesc
         if self.create_folder(path_folder):
             #folders to store html and pdf files
@@ -587,6 +597,7 @@ class current_report():
                 path_folder = path_folder + '/' + self.report.name +'/JSON'
                 if self.create_folder(path_folder):
                     file_name = path_folder + '/' + file_name
+                    # generation json file from the object
                     with open(file_name, 'w') as json_file:
                         json.dump(myreport, json_file, indent=4)
         return myreport 
