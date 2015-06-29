@@ -6,7 +6,82 @@ import copy
 import os
 import sys
 from Agil_Template import Template
+from Agil_Container import Container
 sys.setrecursionlimit(10000)
+
+#====================================================================
+# Directories  
+CD_ODOO_ADDONS     = os.getcwd()+ '/'+"openerp/addons/" 
+CD_STATIC_REPORTS  = CD_ODOO_ADDONS + "report_def/static/reports/"
+
+def report_path_names(report):
+    env_vars = {}
+    env_vars['report_name'] = report.name
+    env_vars['module_name'] = report.module_id.shortdesc
+    env_vars['json_file_name']   = report.json_file_name
+    env_vars['template_file_name'] = report.template_file_name + '.html'
+    env_vars['template_html'] = report.template_html
+    env_vars['xml_file_name'] = report.xml_file_name + '.xml'
+    
+    env_vars['path_json_file'] = CD_STATIC_REPORTS +env_vars['module_name']+"/" + env_vars['report_name']+"/JSON/"   
+    env_vars['path_template_source'] =  CD_ODOO_ADDONS + env_vars['module_name'] + "/templates/"
+    env_vars['path_name_output'] = CD_STATIC_REPORTS + env_vars['module_name']+"/"+env_vars['report_name']+"/HTML/"
+    env_vars['path_xml_report'] = CD_STATIC_REPORTS + env_vars['module_name']+"/"+env_vars['report_name']+"/report_def/"
+    return env_vars
+
+
+class oerp_report():
+    
+    def __init__(self,pool,cr,uid):
+        self.pool = pool
+        self.cursor = cr 
+        self.uid = uid
+            
+    
+    def start_report(self,attributes):
+        user = self.pool.get('res.users').browse(self.cursor,self.uid,self.uid)
+        attributes['user'] =  user
+        attributes['company'] = user.company_id
+        attributes['cr'] = self.cursor
+        attributes['pool'] = self.pool
+        cur_report = current_report(attributes)
+
+        if cur_report.report: 
+            result = cur_report.execute_query(attributes.get('record_list',None))
+            cur_report.print_record_list(result)
+           
+            # Write JSON file 
+            my_json_report = ao_json(cur_report)
+            name_file = my_json_report.to_file()
+            id_file = my_json_report.save_file()
+            print 'id_file ',id_file,name_file
+            json_out = json_to_report(cur_report)
+            
+            
+            container_file = cur_report.env_vars['path_name_output'] + cur_report.env_vars['template_file_name'] 
+            print 'container_file',container_file
+            
+            #create new container
+            container_pages = Container(container_file)
+            
+            #prepare template
+            template = json_out.get_template()
+            template.__class__= Template
+            
+            #add template to container
+            container_pages.add(template)
+            
+            #save container 
+            output_file_name = container_pages.save("portrait",save_with_date=True)
+            
+            return {
+                'type' : 'ir.actions.client',
+                'name' : 'Report Viewer Action',
+                'tag' : 'report.viewer.action',
+                'params' : {'report_id': cur_report.report.id,'json_id':id_file},
+             }
+        return False 
+
 
 class ao_report_json_files(object):
     
@@ -14,64 +89,84 @@ class ao_report_json_files(object):
         self.name = dic_json['name']
         self.report_id = dic_json['report_id']
 
-#   
-class oerp_report():
+class ao_json(object):
     
-    def start_report(self,attributes):
+    def __init__(self,cur_report):
+        self.cur_report  = cur_report
+        self.env_vars    = report_path_names(cur_report.report)
+        self.report_name = cur_report.report.name
+        self.json_name   = self.get_file_name()
         
-        self.pool = attributes.get('pool')
-        self.cursor = attributes.get('cr')
-        datas  = attributes.get('datas',None)
-        report  = attributes.get('report',None)
-        user    = attributes.get('user',None)
-        company = attributes.get('company',None)
-        context = attributes.get('context',None)
-        record_list = attributes.get('record_list',None)
-        
-        self.user_id = user.id
-        ao_api = ao_report_api(attributes)
-        cur_report = ao_api.cur_report
- 
+    def save_file(self):
+        json_pool = self.cur_report.pool.get('report.def.json_files') 
+        self.json_id = json_pool.create(self.cur_report.cursor,
+                                        self.cur_report.user.id,
+                                        {'name':self.json_name,
+                                         'report_id':self.cur_report.report.id})
+        return self.json_id
+    
+    
+    def get_file_name(self):
+        # generate uniq Json file name 
         today     = datetime.datetime.now()
         time_now  = str(today.time())[0:8]
-        name_file = report.name + "_" + str(today.date()) + "_" + time_now + ".json"
-        
-        # Write JSON file 
-        cur_report.to_json(name_file, report)
-        id_file_created = self.save_json_file_name(name_file, cur_report.report.id)
-        print("file id:", name_file,id_file_created)
-        return [cur_report, id_file_created]
+        report_name = self.cur_report
+        json_name = self.env_vars['json_file_name'] + "_" + str(today.date()) + "_" + time_now + ".json"
+        self.cur_report.path_json_file = self.env_vars['path_json_file'] + json_name
+        return json_name
     
-    def get_object_model(self, my_model):
-        report_pool = self.pool.get(my_model['model'])
-        if my_model.has_key('name'):
-            id = report_pool.search(self.cursor, self.user_id, [('name', '=', my_model['name'])])
-        else:
-            id = report_pool.search(self.cursor, self.user_id, [('id', '=', my_model['id'])])
         
-        if id:
-            all_objects = report_pool.browse(self.cursor, self.user_id, id)  
-            return all_objects[0] 
-        else:
-            return None         
-
-    def save_json_file_name(self, name_file, report_id):
-        id_file = self.pool.get('report.def.json_files').create(self.cursor,
-                                                                self.user_id,
-                                                                {'name':name_file, 'report_id':report_id})
-        return id_file
+    def to_file(self):
+        
+        # Create path folder if necessary 
+        # set and write json objet 
+          
+        report_pages = collections.OrderedDict()
+        myreport     = collections.OrderedDict()
+        report_pages['Pages']  = self.cur_report.pages 
+        report_pages['Images'] = self.cur_report.images
+        myreport['Report']     = report_pages
+        
+        # Creates the file directories for managing different types of report
+        path_folder = CD_STATIC_REPORTS
+        if self.create_folder(path_folder):
+            pass 
+        
+        path_folder = path_folder + '/' + self.env_vars['module_name']
+        if self.create_folder(path_folder):
+            #folders to store html and pdf files
+            if(self.create_folder(path_folder + '/' + self.env_vars['report_name'] )):
+                self.create_folder(path_folder + '/' + self.env_vars['report_name'] +'/HTML')
+                self.create_folder(path_folder + '/' + self.env_vars['report_name'] +'/PDF')
+                #folder to store json files
+                path_folder = path_folder + '/' + self.env_vars['report_name'] +'/JSON'
+                if self.create_folder(path_folder):
+                    file_name = path_folder + '/' + self.json_name
+                    # Write JSON file from the object
+                    with open(file_name, 'w') as json_file:
+                        json.dump(myreport, json_file, indent=4)
+        return self.json_name
+     
     
+    def create_folder(self, path_target):
+        try:
+            os.mkdir(path_target)
+            return True
+        except OSError:
+            pass
+            return True
+    
+#   
 
 class json_to_report():
     
     
-    def __init__(self,attributes):
-        
-        self.path_json_file = attributes.get('path_json_file', None) 
-        self.html_template  = attributes.get('html_template', None) 
-        self.path_template_source = attributes.get('path_template_source', None) 
-        self.file_template    = attributes.get('file_template', None) 
-        self.path_name_output = attributes.get('path_name_output', None) 
+    def __init__(self,cur_report):
+        self.env_vars  = report_path_names(cur_report.report)
+        self.html_template        = self.env_vars.get('template_html', None) 
+        self.path_template_source = self.env_vars.get('path_template_source', None) 
+        self.file_template        = self.env_vars.get('template_file_name', None) 
+        self.path_name_output     = self.env_vars.get('path_name_output', None) 
        
         if self.path_template_source == None:
             self.path_template_source = os.getcwd()+ '/'
@@ -92,9 +187,9 @@ class json_to_report():
         if(self.template.get_footer_bloc(self.template.get_repeted_bloc()) != None):
             footer_bloc_repeted = copy.deepcopy(self.template.get_footer_bloc(self.template.get_repeted_bloc()))
         
-        self.data = self.read_json_file(self.path_json_file)
-        pages  = self.data["Report"]["Pages"]
-        images = self.data["Report"]["Images"]
+        self.data = self.read_json_file(cur_report.path_json_file)
+        pages     = self.data["Report"]["Pages"]
+        images    = self.data["Report"]["Images"]
         nombre_page = len(pages.keys())
         self.template.duplicate_page(nombre_page)
         page_index = 0
@@ -136,6 +231,7 @@ class json_to_report():
     
     def get_template(self):
         return self.template
+
     def save_report(self):
         self.template.copie(self.path_name_output + self.file_template)
 
@@ -226,99 +322,52 @@ class ao_report_json_files(object):
         self.report_id = dic_json['report_id']
 
 
-class ao_report_api():
-    
-    def __init__(self,attributes):
-        self.cursor = attributes.get('cr')
         
-        datas  = attributes.get('datas',None)
-        report  = attributes.get('report',None)
-        user    = attributes.get('user',None)
-        company = attributes.get('company',None)
-        context = attributes.get('context',None)
-        record_list = attributes.get('record_list',None)
-        
-        print "user",user.name
-        
-        self.user_id = user.id
-        self.report_context = {}
-        
-        report_name = report.name
-        self.report_context = self.update_context('report', report)
-        self.report_context = self.update_context('company', company)
-        self.report_context = self.update_context('user', user)
-        self.report_context = self.update_context('datas', datas)
-        for key,value in context.iteritems():
-            self.report_context = self.update_context(key, value)
-            
-
-        # Execute query - if query is valid
-        self.cur_report = current_report(self.report_context)
-        if self.cur_report.report.type == 'normal':
-            query = self.cur_report.query_prepare()
-            self.cursor.execute(query)
-            self.result = self.cursor.dictfetchall()
-        elif self.cur_report.report.type == 'user':
-            self.result = record_list
-              
-        self.cur_report.print_record_list(self.result)
-   
-    def update_context(self, key_context, val_context):
-        self.report_context[key_context] = val_context
-        return self.report_context
-    
-    def raz_totals(self, totals):
-        for total in totals:
-            self.set_total(total, 0)
-        return True
-    
-    def fill_all_json_data(self, json_data):
-        json_report = json_data['Report']
-        json_pages = json_report['Pages']
-        my_temple = Template(page)
-        html_report = my_temple.create_new_report()
-        for key_page, my_page in json_pages.items():
-            page_number = int(key_page.replace('Page', ''))
-            my_temple.fill_create_new_page(page_number) 
-            for key_section, my_section in my_page.items():
-                
-                for key_bloc, my_bloc in my_section.items():
-                    bloc_number = int(key_page.replace('Bloc', ''))
-                    for field, value in my_bloc.items():
-                        self.fill_field_value(key_section, page_number, bloc_number, field, value)
-    
-    def fill_field_value(self, key_section, page_number, bloc_number, field, value):
-        return ' '
-        
-                    
-class current_page_xxx():
-    def __init__(self, cur_report):
-        self.my_page = cur_report
-        
+         
 class current_report():
     
-    def __init__(self, context):
+    def update_context(self, key_context, val_context):
+        self.context[key_context] = val_context
+        return self.context
         
+    def __init__(self, context):
+        self.initialize(context)
+        
+    def initialize(self, context):
+        self.report  = context.get('report',None)
+        self.cursor  = context.get('cr',None)
+        self.pool    = context.get('pool',None)
+        self.user    = context.get('user',None)
+        user_context = context.get('context',None)
+        self.company= context.get('company',None)
+        self.form_data = context.get('datas',None)
+        
+        # init path files 
+        self.env_vars = report_path_names(self.report)
+
         self.pages = collections.OrderedDict()
         self.totals = {}
         self.images = collections.OrderedDict()
         self.page_number = 0
-        self.report = context['report']
-        self.form_data = context['datas']
         self.bloc_number = 1
+    
         self.context = context
+        for key,value in user_context.iteritems():
+            self.context = self.update_context(key, value)
+        
         self.context['current_report'] = self
         
         self.form_lst_fields = self.get_source_data_fields('Form')
         self.context_lst_fields = self.get_source_data_fields('Context')
         
+        # report sections definitions
         self.section_names = { 'Report_header': self.get_section_fields('Report_header'),
                                'Page_header'  : self.get_section_fields('Page_header'),
                                'Details'      : self.get_section_fields('Details'),
                                'Page_footer'  : self.get_section_fields('Page_footer'),
                                'Report_footer': self.get_section_fields('Report_footer'),
                               }    
-        
+        # declare total function 
         tot_function = self.total_calculate
         self.total_functions = { 'Count':'count_total',
                                  'Sum':'sum_total',
@@ -328,14 +377,22 @@ class current_report():
         self.max_bloc_details = self.get_max_bloc_section('Details')
         self.init_totals()
         self.key_group()
-    
+        
     def query_prepare(self):
         query = self.report.query
         query = self.str_replace_values(self.form_lst_fields,'@form',query)
         query = self.str_replace_values(self.context_lst_fields,'@context',query)
         return query 
     
-    
+    def execute_query(self,lst_record = None): 
+        # Execute query - if query is valid
+        if self.report.type == 'normal':
+            query = self.query_prepare()
+            self.cursor.execute(query)
+            return self.cursor.dictfetchall()
+        elif self.report.type == 'user':
+            return lst_record
+        
     def str_replace_values(self,lst_fields,filter, str_query):
         for field in lst_fields:
             str_search = filter + '.' + field.name
@@ -355,7 +412,7 @@ class current_report():
         return n_value
     
     def format_value(self,field,value):
-        print 'format_value',field.name,field.field_type,value
+        #print 'format_value',field.name,field.field_type,value
         if field.field_type == 'Number':
             value = str(value)
         else:
@@ -386,15 +443,12 @@ class current_report():
             my_total['reset_repeat_section'] = total.reset_repeat_section
             self.totals[total.name] = self.reset_total(my_total)
             
-    
-      
             
     def total_calculate(self, field, value):
         total_name = field.total_id.name
         my_total = self.totals[total_name]
         if my_total['function'] == 'Sum':
                 my_total['total'] = my_total['total'] + self.string_to_value(value)
-                print 'total',total_name,my_total['total'],value
         
         if my_total['function'] == 'Count':
             my_total['total'] = my_total['total'] + 1
@@ -427,17 +481,27 @@ class current_report():
     def date(self):
         return datetime.date.today()
     
+    '''
+    search field id in given bloc section name
+    if exist return it's object field
+    '''
     def field_object(self, field_id, section_name='Details'):
         section_list = self.get_section_fields(section_name)
         if section_list.has_key(field_id):
             field = section_list[field_id]
             return field
     
+    '''
+    
+    '''
     def field(self, field_id, section_name='Details'):
         field = self.field_object(field_id, section_name)
         value = self.get_field(self.page_number, field.section, self.bloc_number, field.name)
         return value
     
+    '''
+        return field list of given section 
+    '''
     def get_section_fields(self, section_name):
         section_list = {}
         for field in self.report.field_ids:
@@ -445,6 +509,9 @@ class current_report():
                 section_list[field.name] = field
         return section_list
     
+    '''
+       returns a list of matching fields, a given type of source_data  
+    '''
     def get_source_data_fields(self, type_value):
         lst_fields = []
         for field in self.report.field_ids:
@@ -452,7 +519,10 @@ class current_report():
                 lst_fields.append(field)
         return lst_fields
     
-    # regroupement et tri des records pa cle 
+    '''
+        Regroupement et tri des records par cle
+        pour constituer une liste des recodrs
+    ''' 
     def sort_record_list(self,results):
        
         lst_records = []
@@ -481,10 +551,11 @@ class current_report():
 
         return all_lists
 
-    # impression de la liste des records 
+    '''
+     print a  list of records 
+    '''
     def print_record_list(self,results):
         all_lists = self.sort_record_list(results)
-        print 'all lists records ', len(all_lists)
         for list_record in all_lists:
             
             for record in list_record:
@@ -492,59 +563,77 @@ class current_report():
                 
             self.print_end(record)
             
-            
+    '''
+        print one record
+    '''        
     def print_line(self,record):
         if self.bloc_number == 1:
-            print 'init premiere page',self.page_number
             # create a new first page
             self.new_page(record)
         
         # checked if necessary to change page details
         if self.bloc_number >  self.max_bloc_details:
-            print 'find de  page',self.page_number,self.bloc_number
             self.end_page(record)
             # Create a next page
-            print 'nouvelle  page',self.page_number,self.bloc_number
             self.new_page(record)
         
         # process body for any record
-        print 'ligne record page ',self.page_number,self.bloc_number
         self.evaluate_fields('Details',record)
         self.bloc_number += 1 
     
+    '''
+        Ends properly a footer. Evaluates if there are blocks to be printed before 
+        reaching the end of the detail section. It prints the remaining blocks with null values 
+        and prints the bottom of the page
+    '''
     def print_end(self,record):
         if self.bloc_number <=  self.max_bloc_details:
-            print 'Terminer la page en cours ',self.page_number,self.bloc_number
             while self.bloc_number <= self.max_bloc_details:
                 self.evaluate_fields('Details',False)
                 self.bloc_number += 1 
                 
             self.end_page(record)
     
+    '''
+        start a new page
+        print Page Header and Report Header 
+    '''
     def new_page(self, record):
         self.page_number += 1
         self.bloc_number = 1
         self.evaluate_fields('Report_header', record)
         self.evaluate_fields('Page_header', record)
-        
+    
+    '''
+        ended page 
+        print Page Footer and Report Footer
+    '''
     def end_page(self, record):
         self.bloc_number = 1
         self.evaluate_fields('Page_footer', record)
         self.evaluate_fields('Report_footer', record)
-        
     
+    '''
+        get page of given page number
+    '''
     def get_page(self, page_number):
         key_page = 'Page' + str(page_number)
         if not (self.pages.has_key(key_page)):
             self.pages[key_page] = collections.OrderedDict()
         return self.pages[key_page]
 
+    '''
+        get section of given page number and section
+    '''
     def get_page_section(self, page_number, section_name):   
         mypage = self.get_page(page_number) 
         if not (mypage.has_key(section_name)):
             mypage[section_name] = collections.OrderedDict()
         return mypage[section_name]
     
+    '''
+        get section bloc of given page number,section, and bloc number
+    '''
     def get_page_section_bloc(self, page_number, section_name, bloc_number):
         key_bloc = 'Bloc' + str(bloc_number)   
         mysection = self.get_page_section(page_number, section_name) 
@@ -552,10 +641,16 @@ class current_report():
             mysection[key_bloc] = collections.OrderedDict()
         return mysection[key_bloc]
     
+    '''
+        set field value of given page number,section, bloc number and field_id
+    '''
     def set_field(self, page_number, section_name, bloc_number, field_id, value): 
         mypage_section_bloc = self.get_page_section_bloc(page_number, section_name, bloc_number)
         mypage_section_bloc[field_id] = value
     
+    '''
+        get object field of given page number,section, bloc number and field_id
+    '''
     def get_field(self, page_number, section_name, bloc_number, field_id): 
         mypage_section_bloc = self.get_page_section_bloc(page_number, section_name, bloc_number)
         if mypage_section_bloc.has_key(field_id):
@@ -563,53 +658,47 @@ class current_report():
         else:
             return ''
     
+    '''
+        get a page section bloc
+    '''
     def page_get_section_bloc(self, page_number, section_name, bloc_number):
         mypage_section_bloc = self.get_page_section_bloc(page_number, section_name, bloc_number)
         return mypage_section_bloc
     
+    '''
+        not used yet 
+    '''
     def get_value_from_bloc(self, bloc_values, field_id):
         if bloc_values.has_key(field_id):
             return bloc_values.has_key[field_id]
         else:
             return ' '
         
-    def to_json(self, file_name, rep):
-        
-        report_pages = collections.OrderedDict()
-        myreport = collections.OrderedDict()
-        
-        report_pages['Pages'] = self.pages 
-        report_pages['Images'] = self.images
-        myreport['Report'] = report_pages
-        
-        # Creates the file directories for managing different types of report
-        path_folder = os.getcwd() + '/openerp/addons/report_def/static/reports'
-        if self.create_folder(path_folder):
-            pass 
-        
-        path_folder = path_folder + '/' + rep.module_id.shortdesc
-        if self.create_folder(path_folder):
-            #folders to store html and pdf files
-            if(self.create_folder(path_folder + '/' + self.report.name )):
-                self.create_folder(path_folder + '/' + self.report.name +'/HTML')
-                self.create_folder(path_folder + '/' + self.report.name +'/PDF')
-                #folder to store json files
-                path_folder = path_folder + '/' + self.report.name +'/JSON'
-                if self.create_folder(path_folder):
-                    file_name = path_folder + '/' + file_name
-                    # generation json file from the object
-                    with open(file_name, 'w') as json_file:
-                        json.dump(myreport, json_file, indent=4)
-        return myreport 
     
-    def create_folder(self, path_target):
-        try:
-            os.mkdir(path_target)
-            return True
-        except OSError:
-            pass
-            return True
-        
+    '''
+        not used yet 
+        fill all data in one pass, to be used by formulary 
+    '''
+    def fill_all_json_data(self, page,json_data):
+        json_report = json_data['Report']
+        json_pages  = json_report['Pages']
+        my_temple   = Template(page)
+        html_report = my_temple.create_new_report()
+        for key_page, my_page in json_pages.items():
+            page_number = int(key_page.replace('Page', ''))
+            my_temple.fill_create_new_page(page_number) 
+            for key_section, my_section in my_page.items():
+                
+                for key_bloc, my_bloc in my_section.items():
+                    bloc_number = int(key_page.replace('Bloc', ''))
+                    for field, value in my_bloc.items():
+                        self.fill_field_value(key_section, page_number, bloc_number, field, value)
+    
+    def fill_field_value(self, key_section, page_number, bloc_number, field, value):
+        return ' '
+    
+    '''
+    '''    
     def key_group(self):
         self.field_key_group = []
         for section_name in self.section_names:
@@ -620,7 +709,8 @@ class current_report():
                     print "test key group",field.name
         return self.field_key_group
     
-    
+    '''
+    '''
     def key_group_value(self,record):
         ref_value = ''
         for field in self.field_key_group:
@@ -629,8 +719,10 @@ class current_report():
             ref_value = ref_value + value
         return ref_value
      
-    
-   
+    '''
+       for a given section, all fields total type are calculated first
+       Then fields are evaluated and retrieve their values
+    '''
     def evaluate_fields(self, section_name, record):
         
         section_list = self.get_section_fields(section_name)
@@ -646,6 +738,9 @@ class current_report():
             value = self.calculate_field_value(field, value)
             self.set_field(self.page_number, field.section, self.bloc_number, field.name, value)
     
+    '''
+        the field value is extracted from the current record
+    '''
     def value_from_model(self, field, record):
         if record.has_key(field.name):
             print 'value_from_model',field.name
@@ -653,6 +748,9 @@ class current_report():
         else:
             return 'error field' + field.name
     
+    '''
+        the field value is extracted from the context
+    '''
     def value_from_context(self,field): 
         value = ''
         if field:
@@ -663,12 +761,19 @@ class current_report():
                 value = ''
         return value 
     
+    '''
+        the field value is extracted from the current form
+    '''
     def value_from_form(self, field):
         if self.form_data.has_key(field.name):
             return self.form_data[field.name]
         else: 
             return 'error value from form : ' + field.name
     
+    '''
+        the field value is extracted from a total
+        the total method reset are evaluated 
+    '''
     def value_from_total(self, field):
         value = ''
         if field.total_id:
@@ -679,6 +784,9 @@ class current_report():
                 
         return value
     
+    '''
+       the field value is extracted according its data source
+    '''
     def load_field_value(self, field, record=False):
         value = ''
         if record:
@@ -697,6 +805,9 @@ class current_report():
             
         return value
     
+    '''
+       the field value is extracted from stored static images   
+    '''
     def field_static_image(self, field, value):
         
         if field.field_type == 'Static Image':
@@ -705,7 +816,10 @@ class current_report():
             value = 'StaticImage'
             
         return value
-       
+    
+    '''
+        part of the code reserved for the injection of values by external methods (python, html ...)
+    '''
     def calculate_field_value(self, field, value):
 
         if field.source_data == 'Function':
