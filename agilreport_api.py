@@ -73,7 +73,8 @@ class oerp_report():
             
             #save container 
             output_file_name = container_pages.save("portrait",save_with_date=True)
-            
+            self.pool.get("report.def").write(self.cursor, user.id,[cur_report.report.id], {'out_template_file_name': output_file_name},context=None) 
+              
             return {
                 'type' : 'ir.actions.client',
                 'name' : 'Report Viewer Action',
@@ -111,7 +112,8 @@ class ao_json(object):
         today     = datetime.datetime.now()
         time_now  = str(today.time())[0:8]
         report_name = self.cur_report
-        json_name = self.env_vars['json_file_name'] + "_" + str(today.date()) + "_" + time_now + ".json"
+        self.cur_report.output_file = self.env_vars['json_file_name'] + "_" + str(today.date()) + "_" + time_now 
+        json_name   = self.cur_report.output_file + ".json"
         self.cur_report.path_json_file = self.env_vars['path_json_file'] + json_name
         return json_name
     
