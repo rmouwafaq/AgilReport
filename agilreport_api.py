@@ -14,14 +14,19 @@ sys.setrecursionlimit(10000)
 CD_ODOO_ADDONS     = os.getcwd()+ '/'+"openerp/addons/" 
 CD_STATIC_REPORTS  = CD_ODOO_ADDONS + "report_def/static/reports/"
 
+def end_file(file_name,str_end):
+    if not file_name.endswith(str_end):
+        file_name = file_name + str_end
+    return file_name
+
 def report_path_names(report):
     env_vars = {}
     env_vars['report_name'] = report.name
     env_vars['module_name'] = report.module_id.shortdesc
     env_vars['json_file_name']   = report.json_file_name
-    env_vars['template_file_name'] = report.template_file_name + '.html'
+    env_vars['template_file_name'] = end_file(report.template_file_name,'.html') 
     env_vars['template_html'] = report.template_html
-    env_vars['xml_file_name'] = report.xml_file_name + '.xml'
+    env_vars['xml_file_name'] = end_file(report.xml_file_name,'.xml')  
     
     env_vars['path_json_file'] = CD_STATIC_REPORTS +env_vars['module_name']+"/" + env_vars['report_name']+"/JSON/"   
     env_vars['path_template_source'] =  CD_ODOO_ADDONS + env_vars['module_name'] + "/templates/"
@@ -37,50 +42,67 @@ class oerp_report():
         self.cursor = cr 
         self.uid = uid
             
-    
-    def start_report(self,attributes):
+    def declare_report(self,attributes):
         user = self.pool.get('res.users').browse(self.cursor,self.uid,self.uid)
         attributes['user'] =  user
         attributes['company'] = user.company_id
         attributes['cr'] = self.cursor
         attributes['pool'] = self.pool
-        cur_report = current_report(attributes)
-
+        return current_report(attributes)
+    
+    def create_json(self,cur_report):
+      # Write JSON file 
+        my_json_report = ao_json(cur_report)
+        name_file = my_json_report.to_file(cur_report)
+        cur_report.id_file = my_json_report.save_file(cur_report)
+        print 'id_file ',cur_report.id_file,name_file
+        cur_report.json_out = json_to_report(cur_report)
+    
+    def set_preview(self,cur_report):
+        container_file = cur_report.env_vars['path_name_output'] + cur_report.env_vars['template_file_name'] 
+        print 'container_file',container_file
+        #create new container
+        return Container(container_file)
+        
+    
+    def to_preview(self,cur_report):
+        #prepare template
+        template = cur_report.json_out.get_template()
+        template.__class__= Template
+        
+        #add template to container
+        self.container_pages.add(template)
+        
+        #save container 
+        output_file_name = self.container_pages.save("portrait",save_with_date=True)
+        self.pool.get("report.def").write(cur_report.cursor, 
+                                          cur_report.user.id,
+                                          [cur_report.report.id],
+                                          {'out_template_file_name': output_file_name},
+                                          context=None) 
+          
+        return {
+            'type' : 'ir.actions.client',
+            'name' : 'Report Viewer Action',
+            'tag' : 'report.viewer.action',
+            'params' : {'report_id': cur_report.report.id,'json_id':cur_report.id_file},
+         }
+      
+    def start_report(self,attributes):
+        cur_report = self.declare_report(attributes)
+        self.set_report(cur_report,attributes.get('record_list',None))
+        
+    def set_report(self,cur_report,recordlist): 
         if cur_report.report: 
-            result = cur_report.execute_query(attributes.get('record_list',None))
-            cur_report.print_record_list(result)
-           
-            # Write JSON file 
-            my_json_report = ao_json(cur_report)
-            name_file = my_json_report.to_file()
-            id_file = my_json_report.save_file()
-            print 'id_file ',id_file,name_file
-            json_out = json_to_report(cur_report)
-            
-            
-            container_file = cur_report.env_vars['path_name_output'] + cur_report.env_vars['template_file_name'] 
-            print 'container_file',container_file
-            
-            #create new container
-            container_pages = Container(container_file)
-            
-            #prepare template
-            template = json_out.get_template()
-            template.__class__= Template
-            
-            #add template to container
-            container_pages.add(template)
-            
-            #save container 
-            output_file_name = container_pages.save("portrait",save_with_date=True)
-            self.pool.get("report.def").write(self.cursor, user.id,[cur_report.report.id], {'out_template_file_name': output_file_name},context=None) 
-              
-            return {
-                'type' : 'ir.actions.client',
-                'name' : 'Report Viewer Action',
-                'tag' : 'report.viewer.action',
-                'params' : {'report_id': cur_report.report.id,'json_id':id_file},
-             }
+            result = cur_report.execute_query(recordlist)
+            if cur_report.report.type == 'formulary':
+                cur_report.print_record_list(result)
+            else:
+                cur_report.print_record_list(result)
+                
+            self.create_json(cur_report)
+            self.container_pages = self.set_preview(cur_report)
+            return self.to_preview(cur_report)
         return False 
 
 
@@ -94,39 +116,38 @@ class ao_json(object):
     
     def __init__(self,cur_report):
         self.cur_report  = cur_report
-        self.env_vars    = report_path_names(cur_report.report)
         self.report_name = cur_report.report.name
-        self.json_name   = self.get_file_name()
+        self.json_name   = self.get_file_name(cur_report)
         
-    def save_file(self):
-        json_pool = self.cur_report.pool.get('report.def.json_files') 
-        self.json_id = json_pool.create(self.cur_report.cursor,
-                                        self.cur_report.user.id,
+    def save_file(self,cur_report):
+        json_pool = cur_report.pool.get('report.def.json_files') 
+        self.json_id = json_pool.create(cur_report.cursor,
+                                        cur_report.user.id,
                                         {'name':self.json_name,
-                                         'report_id':self.cur_report.report.id})
+                                         'report_id':cur_report.report.id})
         return self.json_id
     
     
-    def get_file_name(self):
+    def get_file_name(self,cur_report):
         # generate uniq Json file name 
         today     = datetime.datetime.now()
         time_now  = str(today.time())[0:8]
-        report_name = self.cur_report
-        self.cur_report.output_file = self.env_vars['json_file_name'] + "_" + str(today.date()) + "_" + time_now 
-        json_name   = self.cur_report.output_file + ".json"
-        self.cur_report.path_json_file = self.env_vars['path_json_file'] + json_name
+        report_name = cur_report
+        cur_report.output_file = cur_report.env_vars['json_file_name'] + "_" + str(today.date()) + "_" + time_now 
+        json_name   = cur_report.output_file + ".json"
+        cur_report.path_json_file = cur_report.env_vars['path_json_file'] + json_name
         return json_name
     
         
-    def to_file(self):
+    def to_file(self,cur_report):
         
         # Create path folder if necessary 
         # set and write json objet 
           
         report_pages = collections.OrderedDict()
         myreport     = collections.OrderedDict()
-        report_pages['Pages']  = self.cur_report.pages 
-        report_pages['Images'] = self.cur_report.images
+        report_pages['Pages']  = cur_report.pages 
+        report_pages['Images'] = cur_report.images
         myreport['Report']     = report_pages
         
         # Creates the file directories for managing different types of report
@@ -134,14 +155,14 @@ class ao_json(object):
         if self.create_folder(path_folder):
             pass 
         
-        path_folder = path_folder + '/' + self.env_vars['module_name']
+        path_folder = path_folder + '/' + cur_report.env_vars['module_name']
         if self.create_folder(path_folder):
             #folders to store html and pdf files
-            if(self.create_folder(path_folder + '/' + self.env_vars['report_name'] )):
-                self.create_folder(path_folder + '/' + self.env_vars['report_name'] +'/HTML')
-                self.create_folder(path_folder + '/' + self.env_vars['report_name'] +'/PDF')
+            if(self.create_folder(path_folder + '/' + cur_report.env_vars['report_name'] )):
+                self.create_folder(path_folder + '/' + cur_report.env_vars['report_name'] +'/HTML')
+                self.create_folder(path_folder + '/' + cur_report.env_vars['report_name'] +'/PDF')
                 #folder to store json files
-                path_folder = path_folder + '/' + self.env_vars['report_name'] +'/JSON'
+                path_folder = path_folder + '/' + cur_report.env_vars['report_name'] +'/JSON'
                 if self.create_folder(path_folder):
                     file_name = path_folder + '/' + self.json_name
                     # Write JSON file from the object
@@ -164,11 +185,10 @@ class json_to_report():
     
     
     def __init__(self,cur_report):
-        self.env_vars  = report_path_names(cur_report.report)
-        self.html_template        = self.env_vars.get('template_html', None) 
-        self.path_template_source = self.env_vars.get('path_template_source', None) 
-        self.file_template        = self.env_vars.get('template_file_name', None) 
-        self.path_name_output     = self.env_vars.get('path_name_output', None) 
+        self.html_template        = cur_report.env_vars.get('template_html', None) 
+        self.path_template_source = cur_report.env_vars.get('path_template_source', None) 
+        self.file_template        = cur_report.env_vars.get('template_file_name', None) 
+        self.path_name_output     = cur_report.env_vars.get('path_name_output', None) 
        
         if self.path_template_source == None:
             self.path_template_source = os.getcwd()+ '/'
@@ -213,16 +233,17 @@ class json_to_report():
             self.data_merge_section(self.template,page_index,page_value,images,'Report_footer')
                 
             #---------------------------------------------------------
-            page_index=page_index+1
+            page_index = page_index+1
        # self.template.copie(self.path_name_output + self.file_template)
        # self.template.save_pdf_from_file(self.path_name_output + self.file_template, self.path_name_output + 'pos_order_details.pdf')
         
         
     
-    def data_merge_section(self,temp,page_index,page_value,images,report_section):  
-        for key_bloc,val_bloc in page_value[report_section].iteritems():
-            temp.set_values_section(page_index,report_section,images,key_bloc,val_bloc) 
-        
+    def data_merge_section(self,temp,page_index,page_value,images,report_section):
+        if page_value.has_key(report_section):
+            for key_bloc,val_bloc in page_value[report_section].iteritems():
+                temp.set_values_section(page_index,report_section,images,key_bloc,val_bloc) 
+            
     def read_json_file(self,path):
         data_file =""
         with open(path,'r+') as json_file:
@@ -352,7 +373,8 @@ class current_report():
         self.images = collections.OrderedDict()
         self.page_number = 0
         self.bloc_number = 1
-    
+        self.json_out = None
+        self.id_file = None
         self.context = context
         for key,value in user_context.iteritems():
             self.context = self.update_context(key, value)
@@ -379,7 +401,14 @@ class current_report():
         self.max_bloc_details = self.get_max_bloc_section('Details')
         self.init_totals()
         self.key_group()
-        
+    
+    
+    def load_template(self):
+        file_template =  self.env_vars['path_template_source'] + self.env_vars['template_file_name'] 
+        my_template = Template()
+        my_template.read(file_template)
+        return my_template
+                
     def query_prepare(self):
         query = self.report.query
         query = self.str_replace_values(self.form_lst_fields,'@form',query)
@@ -393,6 +422,8 @@ class current_report():
             self.cursor.execute(query)
             return self.cursor.dictfetchall()
         elif self.report.type == 'user':
+            return lst_record
+        else: 
             return lst_record
         
     def str_replace_values(self,lst_fields,filter, str_query):
@@ -748,7 +779,7 @@ class current_report():
             print 'value_from_model',field.name
             return record[field.name]
         else:
-            return 'error field' + field.name
+            return 'error field ' + field.name
     
     '''
         the field value is extracted from the context
@@ -791,6 +822,7 @@ class current_report():
     '''
     def load_field_value(self, field, record=False):
         value = ''
+        print 'load_field_value',field.name,field.source_data
         if record:
             if field.source_data == 'Model':
                 value = self.value_from_model(field, record)
