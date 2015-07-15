@@ -90,7 +90,7 @@ class oerp_report():
       
     def start_report(self,attributes):
         cur_report = self.declare_report(attributes)
-        self.set_report(cur_report,attributes.get('record_list',None))
+        return self.set_report(cur_report,attributes.get('record_list',None))
         
     def set_report(self,cur_report,recordlist): 
         if cur_report.report: 
