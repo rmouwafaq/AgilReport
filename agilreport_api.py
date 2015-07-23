@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import datetime
+import time 
 import json
 import collections
 import copy
@@ -22,9 +23,9 @@ def end_file(file_name,str_end):
 def report_path_names(report):
     env_vars = {}
     env_vars['report_name'] = report.name
-    env_vars['module_name'] = report.module_id.shortdesc
+    env_vars['module_name'] = report.module_id.name
     env_vars['json_file_name']   = report.json_file_name
-    env_vars['template_file_name'] = end_file(report.template_file_name,'.html') 
+    env_vars['template_file_name'] = end_file(report.template_file_name,'.html')
     env_vars['template_html'] = report.template_html
     env_vars['xml_file_name'] = end_file(report.xml_file_name,'.xml')  
     
@@ -55,15 +56,13 @@ class oerp_report():
         my_json_report = ao_json(cur_report)
         name_file = my_json_report.to_file(cur_report)
         cur_report.id_file = my_json_report.save_file(cur_report)
-        print 'id_file ',cur_report.id_file,name_file
         cur_report.json_out = json_to_report(cur_report)
     
     def set_preview(self,cur_report):
-        container_file = cur_report.env_vars['path_name_output'] + cur_report.env_vars['template_file_name'] 
-        print 'container_file',container_file
+        container_file = cur_report.env_vars['path_name_output'] + end_file(cur_report.output_file,'.html')  
         #create new container
-        return Container(container_file)
-        
+        cur_report.container_pages = Container(container_file)
+        return cur_report.container_pages
     
     def to_preview(self,cur_report):
         #prepare template
@@ -71,10 +70,11 @@ class oerp_report():
         template.__class__= Template
         
         #add template to container
-        self.container_pages.add(template)
+        cur_report.container_pages.add(template)
         
         #save container 
-        output_file_name = self.container_pages.save("portrait",save_with_date=True)
+        cur_report.container_pages.save()
+        output_file_name = end_file(cur_report.output_file,'.html')
         self.pool.get("report.def").write(cur_report.cursor, 
                                           cur_report.user.id,
                                           [cur_report.report.id],
@@ -90,7 +90,7 @@ class oerp_report():
       
     def start_report(self,attributes):
         cur_report = self.declare_report(attributes)
-        self.set_report(cur_report,attributes.get('record_list',None))
+        return self.set_report(cur_report,attributes.get('record_list',None))
         
     def set_report(self,cur_report,recordlist): 
         if cur_report.report: 
@@ -99,9 +99,9 @@ class oerp_report():
                 cur_report.print_record_list(result)
             else:
                 cur_report.print_record_list(result)
-                
+            cur_report.total_page = cur_report.page_number    
             self.create_json(cur_report)
-            self.container_pages = self.set_preview(cur_report)
+            cur_report.container_pages = self.set_preview(cur_report)
             return self.to_preview(cur_report)
         return False 
 
@@ -204,10 +204,9 @@ class json_to_report():
             if self.html_template:
                 self.template.set_content_html(self.html_template)
         
-        modele_bloc = copy.deepcopy(self.template.get_repeted_bloc())
-        footer_bloc_repeted = None
-        if(self.template.get_footer_bloc(self.template.get_repeted_bloc()) != None):
-            footer_bloc_repeted = copy.deepcopy(self.template.get_footer_bloc(self.template.get_repeted_bloc()))
+        model_bloc = self.template.get_repeted_bloc() 
+        count_bloc = cur_report.get_max_bloc_section('Details')
+        self.template.copie_bloc({"class":"body_table"},count_bloc,model_bloc)
         
         self.data = self.read_json_file(cur_report.path_json_file)
         pages     = self.data["Report"]["Pages"]
@@ -216,7 +215,6 @@ class json_to_report():
         self.template.duplicate_page(nombre_page)
         page_index = 0
         for page_key,page_value in pages.iteritems():
-            print page_value, page_index
             #------------------section Report header ----------------------
             self.data_merge_section(self.template,page_index,page_value,images,'Report_header')
             
@@ -352,11 +350,40 @@ class current_report():
     def update_context(self, key_context, val_context):
         self.context[key_context] = val_context
         return self.context
+    
+    def dict_in_context(self,context):
+        res = False
+        for key,value in context.iteritems():
+            if type(value) is dict:
+                res = True
+                break 
+        return res
+        
+    
+    def extend_context(self,my_context,result):
+        is_dict = True
+        while is_dict: 
+            for key,value in my_context.iteritems():
+                if type(value) is dict:
+                    for dkey,dvalue in value.iteritems():
+                         if not result.has_key(dkey):
+                            result[dkey]= dvalue
+                else:
+                    result[key]= value
+            
+            is_dict = False 
+            
+        return result
+    
+         
         
     def __init__(self, context):
         self.initialize(context)
         
     def initialize(self, context):
+        self.time = time.strftime("%H:%M:%S")
+        self.now  = datetime.datetime.now()
+        self.total_page = 0 
         self.report  = context.get('report',None)
         self.cursor  = context.get('cr',None)
         self.pool    = context.get('pool',None)
@@ -375,10 +402,14 @@ class current_report():
         self.bloc_number = 1
         self.json_out = None
         self.id_file = None
+        self.container_pages = None
         self.context = context
         for key,value in user_context.iteritems():
             self.context = self.update_context(key, value)
         
+        self.glo_context = self.extend_context(self.context,{}) 
+        print 'self.glo_context',self.glo_context
+        print 'self.context',self.context
         self.context['current_report'] = self
         
         self.form_lst_fields = self.get_source_data_fields('Form')
@@ -445,8 +476,9 @@ class current_report():
         return n_value
     
     def format_value(self,field,value):
-        #print 'format_value',field.name,field.field_type,value
-        if field.field_type == 'Number':
+        if not value:
+            value = '' 
+        if field.field_type in ('Number','Double','Integer','List'):
             value = str(value)
         else:
             value = "'" + value + "'"
@@ -478,8 +510,10 @@ class current_report():
             
             
     def total_calculate(self, field, value):
+        
         total_name = field.total_id.name
         my_total = self.totals[total_name]
+        print 'totalise ',field.name,my_total,my_total['function']
         if my_total['function'] == 'Sum':
                 my_total['total'] = my_total['total'] + self.string_to_value(value)
         
@@ -567,7 +601,6 @@ class current_report():
             first_record = results[0]
             key_value_change = first_record[key_name]
             for record in results:
-                print 'sort_record_list',record[key_name],record
                 if record[key_name]==key_value_change:
                     lst_records.append(record)
                 else:
@@ -739,7 +772,6 @@ class current_report():
             for key_name,field in section_list.items():
                 if field.group == True:
                     self.field_key_group.append(field.name)
-                    print "test key group",field.name
         return self.field_key_group
     
     '''
@@ -747,7 +779,6 @@ class current_report():
     def key_group_value(self,record):
         ref_value = ''
         for field in self.field_key_group:
-            print "key_group_value",field
             value = self.load_field_value(field,record)
             ref_value = ref_value + value
         return ref_value
@@ -776,7 +807,6 @@ class current_report():
     '''
     def value_from_model(self, field, record):
         if record.has_key(field.name):
-            print 'value_from_model',field.name
             return record[field.name]
         else:
             return 'error field ' + field.name
@@ -787,11 +817,13 @@ class current_report():
     def value_from_context(self,field): 
         value = ''
         if field:
-            try:
-                print 'value_from_context',field.name,field.expression
-                value = eval(field.expression, self.context)
-            except SyntaxError:
-                value = ''
+            if field.expression:
+                try:
+                    value = eval(field.expression, self.context)
+                except SyntaxError:
+                    value = ''
+            elif self.glo_context.has_key(field.name):
+                value = self.glo_context[field.name]
         return value 
     
     '''
@@ -822,7 +854,6 @@ class current_report():
     '''
     def load_field_value(self, field, record=False):
         value = ''
-        print 'load_field_value',field.name,field.source_data
         if record:
             if field.source_data == 'Model':
                 value = self.value_from_model(field, record)
@@ -835,7 +866,6 @@ class current_report():
         
         if field.source_data == 'Total':
             value = self.value_from_total(field)
-            print 'print total = ',field.name,value
             
         return value
     
@@ -867,7 +897,7 @@ class current_report():
         
         value = self.field_static_image(field, value)
         return value
-
+    
     
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

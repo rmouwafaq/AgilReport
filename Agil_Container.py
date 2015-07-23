@@ -21,35 +21,18 @@ class Container_doc(object):
     
 class Container(object):
     
-    def __init__(self,file_name = None):
+    def __init__(self,file_name):
         self.col_docs = {}
         self.sequence = 0 
         self.file_name = file_name
     
-    def add(self,template,doc_type = 'portrait'):
+    def add(self,template):
         template.__class__= Template
         new_doc = Container_doc(copy.copy(template),self.sequence,template.get_format())
         self.sequence = self.sequence + 1
         self.col_docs[self.sequence] = new_doc
         
-    def save(self,doc_type = 'portrait',file_name = None,save_with_date=False):
-        if(self.file_name==None):
-            self.file_name=file_name
-        file_html_name=""
-        
-        if(save_with_date==True):
-            
-            decop_name1 = self.file_name.split("/")
-            decop_name2 = decop_name1[len(decop_name1)-1]
-            decop_name3 = decop_name2.split(".")
-            path_name = ""
-            for i in xrange(0,len(decop_name1)-1):
-                path_name+=decop_name1[i]+"/"
-            today = datetime.datetime.now()
-            time_now  = str(today.time())[0:8]
-            file_html_name= decop_name3[0]+str(today.date()) + "_" + time_now +"." + decop_name3[1]
-            self.file_name=path_name+file_html_name 
-        
+    def save(self):
         str_file = soup("""<!DOCTYPE html>
             <html>
                 <head>
@@ -68,7 +51,6 @@ class Container(object):
             """)
         
         for seq,doc in self.col_docs.iteritems():
-#            if doc.doc_type == doc_type or doc_type =='all':
             for content_element in doc.content:
                 str_file.find(id='Report').append(content_element)
                 str_file.find(id='Report').append(str_file.new_tag("br"))
@@ -78,7 +60,7 @@ class Container(object):
                 with open(self.file_name, 'w+') as container_file:
                     container_file.write(str_file.prettify())
         
-        return file_html_name
+        return self.file_name
     
     def save_pdf_from_file(self,input,output,orientation='portrait'):
         options = {
@@ -101,16 +83,3 @@ class Container(object):
         }
         pdfkit.from_string(input,output,options=options)
         
-    def xxx_save_landscape(self,dest_path):
-        with open(dest_path, 'w+') as container_file:
-            container_file.write(self.container_template_landscape)
-
-    def xxx_save_portrait(self,dest_path):
-        with open(dest_path, 'w+') as container_file:
-            container_file.write(self.container_template_portrait)
-    def xxx_add_landscape_template(self,template):
-        self.container_template_landscape=self.container_template_landscape+template.encode("utf-8")
-        
-    def xxx_add_portrait_template(self,template):       
-        self.container_template_portrait=self.container_template_portrait+template.encode("utf-8")
-    

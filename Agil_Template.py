@@ -14,22 +14,33 @@ class Template(object):
         self.report_template = None
         
         if(src_path):
-            self.content_html=self.read(src_path)
-            self.report_template=self.content_html.find(attrs={"class":"Page"})
-        
+            self.content_html = self.read(src_path)
+            self.report_template = self.content_html.find(attrs={"class":"Page"})
+    '''
+        Read template
+    '''    
     def read(self,src_path):
         with open(src_path, 'r+') as template_file:
-            self.file_content=template_file.read()
+            self.file_content = template_file.read()
         self.content_html=soup(self.file_content)
         self.report_template = self.content_html.find(attrs={"class":"Page"})
-        
+    '''
+        affecte une page html comme model
+    '''    
     def set_content_html(self,page_content):
         self.content_html = soup(page_content)
         self.report_template = self.content_html.find(attrs={"class":"Page"})        
-        
+  
+    '''
+        Enregistrement de la template en cours
+    '''
     def copie(self,dest_path):
         with open(dest_path, 'w+') as template_file:
             template_file.write(self.content_html.encode("utf-8"))
+    
+    '''
+        Enregistrement de la template sous format Pdf 
+    '''
     def save_pdf_from_file(self,input,output,orientation='portrait'):
         options = {
                    'zoom':'0.8',
@@ -40,6 +51,9 @@ class Template(object):
                    }
         pdfkit.from_file(input,output,options=options)
     
+    '''
+       save pdf from string FIXME replace pdfkit.from_file by pdfkit.from_string
+    '''
     def save_pdf_from_string(self,input,output,orientation='portrait'):
         options = {
                    'zoom':'0.8',
@@ -49,13 +63,24 @@ class Template(object):
                    'print-media-type':'',
                    }
         pdfkit.from_file(input,output,options=options)
+    
+    
+    '''
+       return paper format of the report
+    '''
     def get_format(self):
         report = self.content_html.find(id="Report")
         return report["format"]
     
+    '''
+        get the html section code
+    '''
     def get_section(self,section_name):
         return self.report_template.find(attrs={"class":section_name})
     
+    '''
+        return the maxbloc section repeted bloc number 
+    '''
     def get_max_bloc_section(self,section_name):
         section_tag=self.get_section(section_name)
         if(section_tag.has_key('ao-max-bloc')):
@@ -67,8 +92,8 @@ class Template(object):
         field={}
         for element in bloc.find_all(id=True):
             field_name=element['id']
-            source_data="Model"
-            type_data="String"
+            source_data = "Model"
+            type_data   = "String"
             if(element.has_key('ao-data-source')):
                 source_data=element['ao-data-source']
             if(element.has_key('ao-type')):
@@ -81,26 +106,36 @@ class Template(object):
         section_tag = self.get_section(section_name)
         return section_tag.find_all(attrs={"class":class_name})
     
+    '''
+        return list of all template ids
+    '''
+    
     def get_ids_section(self,section_name):
         section_tag = self.get_section(section_name)
-        ids=[]
-        for element in section_tag.find_all(id=True):
-            ids.append(element['id'])
-        return ids
-        
+        return self.get_all_ids(section_tag)
+    
+    '''
+        return list of all template ids
+    '''
     def get_all_ids(self):
+        return self.get_all_ids(self.report_template)
+    
+    '''
+        return list of part of the template ids
+    '''
+    def get_all_ids(self,temp_part):
         ids=[]
-        for element in self.report_template.find_all(id=True):
+        for element in temp_part.find_all(id=True):
             ids.append(element['id'])
         return ids
     
+    '''
+        return repeted bloc ids
+    '''
     def get_ids_repeted_bloc(self):
-        ids=[]
         repeted_bloc = self.report_template.find(attrs={"type":"repeted_bloc"})
-        for id_cellule in repeted_bloc.find_all(id=True):
-            ids.append(id_cellule['id'])
-        return ids
-    
+        return self.get_all_ids(repeted_bloc)
+         
         
     def get_element_tag(self,tag_name):
         return self.report_template.find_all(tag_name)
@@ -153,7 +188,7 @@ class Template(object):
         return False
     
     def duplicate_page(self,count_page):
-        modele_page=copy.deepcopy(self.content_html.find(attrs={"class":"Page_container"}))
+        modele_page = copy.deepcopy(self.content_html.find(attrs={"class":"Page_container"}))
         self.content_html.find(id="Report").clear()
         for i in xrange(0,count_page,1):
             self.content_html.find(id="Report").append(copy.deepcopy(modele_page))
@@ -174,6 +209,21 @@ class Template(object):
             pag=self.content_html.find_all(attrs={"class":"pagination"})
             if(pag[page_index]):
                 pag[page_index].string=str(page_index+1)
+                
+    def copie_bloc(self,find_elet,count_bloc,model_bloc):
+        
+        # find_elet = {"class":"body_table"}
+        list_elets = self.content_html.find_all(attrs=find_elet)
+        print 'list_elets : ',list_elets,count_bloc
+        if list_elets:
+            list_elets[0].clear()
+            for i in xrange(0,count_bloc,1):
+                mb = copy.deepcopy(model_bloc)
+                mb['class']='Bloc'+str(i+1)
+                #print 'bloc copie',mb
+                list_elets[0].append(mb)
+                del mb
+            
                 
     def set_val_bloc_repeted(self,page_index,values_id):
         pages=self.content_html.find_all(attrs={"class":"Page"})
