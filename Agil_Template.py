@@ -112,18 +112,18 @@ class Template(object):
     
     def get_ids_section(self,section_name):
         section_tag = self.get_section(section_name)
-        return self.get_all_ids(section_tag)
+        return self.get_part_ids(section_tag)
     
     '''
         return list of all template ids
     '''
     def get_all_ids(self):
-        return self.get_all_ids(self.report_template)
+        return self.get_part_ids(self.report_template)
     
     '''
         return list of part of the template ids
     '''
-    def get_all_ids(self,temp_part):
+    def get_part_ids(self,temp_part):
         ids=[]
         for element in temp_part.find_all(id=True):
             ids.append(element['id'])
@@ -134,7 +134,7 @@ class Template(object):
     '''
     def get_ids_repeted_bloc(self):
         repeted_bloc = self.report_template.find(attrs={"type":"repeted_bloc"})
-        return self.get_all_ids(repeted_bloc)
+        return self.get_part_ids(repeted_bloc)
          
         
     def get_element_tag(self,tag_name):
@@ -214,13 +214,11 @@ class Template(object):
         
         # find_elet = {"class":"body_table"}
         list_elets = self.content_html.find_all(attrs=find_elet)
-        print 'list_elets : ',list_elets,count_bloc
         if list_elets:
             list_elets[0].clear()
             for i in xrange(0,count_bloc,1):
                 mb = copy.deepcopy(model_bloc)
                 mb['class']='Bloc'+str(i+1)
-                #print 'bloc copie',mb
                 list_elets[0].append(mb)
                 del mb
             
@@ -237,14 +235,15 @@ class Template(object):
     def set_values_section(self,page_index,section_name,images,key_bloc,values_bloc):
         pages=self.content_html.find_all(attrs={"class":"Page"})
         section=pages[page_index].find(attrs={"class":section_name})
-        bloc=section.find(attrs={"class":key_bloc})
-        if(bloc):
-            for key,value in values_bloc.iteritems():
+        blocs=section.find_all(attrs={"class":key_bloc})
+        for bloc in blocs:
+            if(bloc):
+                for key,value in values_bloc.iteritems():
+                    
+                    if(bloc.find(id=key)):
+                        if(bloc.find(id=key).name=="img"):
+                            tag_img=bloc.find(id=key)
+                            tag_img["src"]="data:image/jpeg;base64,"+str(images[key])
+                        else:
+                            bloc.find(id=key).string=str(value).encode("utf-8")
                 
-                if(bloc.find(id=key)):
-                    if(bloc.find(id=key).name=="img"):
-                        tag_img=bloc.find(id=key)
-                        tag_img["src"]="data:image/jpeg;base64,"+str(images[key])
-                    else:
-                        bloc.find(id=key).string=str(value).encode("utf-8")
-            

@@ -275,7 +275,6 @@ class ao_report(object):
             self.json_file_name = dic_report['json_file_name']
             
             self.col_fields = dic_report['col_fields']
-            self.col_totals = dic_report['col_totals']
             self.col_sections = dic_report['col_sections']
             
             myKey = 'report_context'
@@ -299,12 +298,6 @@ class ao_report(object):
         for obj_section in colsections:
             self.add_sections(obj_section)
             
-    def add_totals(self, obj_total):
-        self.col_section_blocs[obj_total.name] = obj_total
-    
-    def add_col_totals(self, coltotals):
-        for obj_total in coltotals:
-            self.col_totals(obj_total)
 
 class ao_report_section_bloc(object):
     
@@ -319,22 +312,17 @@ class ao_report_def_field(object):
         self.template_id = dic_field['template_id']
         self.name = dic_field['name']
         self.report_id = dic_field['report_id']
-        self.total_id = dic_field['total_id']
         self.sequence = dic_field['sequence']
         self.section = dic_field['section']
         self.source_data = dic_field['source_data']
         self.field_type = dic_field['field_type']
         self.template_id = dic_field['template_id']
-
-class ao_report_field_total(object):
-    
-    def __init__(self, dic_total):
-        self.name = dic_total['name']
-        self.report_id = dic_total['report_id']
+        self.expression = dic_field['expression']
+        self.formula = dic_field['formula']
         self.function = dic_total['function']
         self.reset_after_print = dic_total['reset_after_print']
         self.reset_repeat_section = dic_total['reset_repeat_section']
-        self.field_ids = dic_total['field_ids']
+ 
     
 class ao_report_json_files(object):
     
@@ -343,6 +331,42 @@ class ao_report_json_files(object):
         self.report_id = dic_json['report_id']
 
 
+class report_total():
+    def __init__(self,totals):
+        self.cur_value = 0
+        self.totals = totals
+        for total in totals:
+            self.set_total(total.name,0)
+    
+    def sum(self,total_name, cur_val = None):
+        if cur_val == None: 
+            cur_val = self.cur_value  
+        cur_total = getattr(self,total_name,0) 
+        print 'total courant ',cur_total
+        cur_total += cur_val
+        self.set_total(total_name, cur_total)
+        return cur_total
+    
+    def count(self,total_name,cur_val = 1):
+        return self.sum(total_name, cur_val) 
+    
+    def average(self,total_name,cur_val=None):
+        if cur_val == None: 
+            cur_val = self.cur_value  
+        cur_total = getattr(self,total_name,0) 
+        cur_total = (cur_total + cur_val)/2
+        self.set_total(total_name, cur_total)
+        return cur_total
+        
+    def set_total(self, total_name,cur_val):
+        setattr(self,total_name,cur_val)
+    
+    def get_value(self,total_name):
+        return getattr(self,total_name,0)
+    
+    def reset_after_print(self,total):
+        if total.reset_after_print:
+            self.set_total(total.name,0)
         
          
 class current_report():
@@ -396,7 +420,6 @@ class current_report():
         self.env_vars = report_path_names(self.report)
 
         self.pages = collections.OrderedDict()
-        self.totals = {}
         self.images = collections.OrderedDict()
         self.page_number = 0
         self.bloc_number = 1
@@ -408,12 +431,11 @@ class current_report():
             self.context = self.update_context(key, value)
         
         self.glo_context = self.extend_context(self.context,{}) 
-        print 'self.glo_context',self.glo_context
-        print 'self.context',self.context
         self.context['current_report'] = self
         
         self.form_lst_fields = self.get_source_data_fields('Form')
         self.context_lst_fields = self.get_source_data_fields('Context')
+        
         
         # report sections definitions
         self.section_names = { 'Report_header': self.get_section_fields('Report_header'),
@@ -423,14 +445,16 @@ class current_report():
                                'Report_footer': self.get_section_fields('Report_footer'),
                               }    
         # declare total function 
-        tot_function = self.total_calculate
         self.total_functions = { 'Count':'count_total',
                                  'Sum':'sum_total',
                                  'Average':'average_total',
                                  }
         
         self.max_bloc_details = self.get_max_bloc_section('Details')
-        self.init_totals()
+
+        self.totals = self.get_source_data_fields('Total')       
+        self.cur_total = report_total(self.totals)     
+        self.context['total'] = self.cur_total
         self.key_group()
     
     
@@ -495,42 +519,9 @@ class current_report():
             
         
     
-    def init_totals(self):
-        '''
-         create totals for current report and reset totals for all methods
-        '''
-        for total in self.report.total_ids:
-            my_total = {}
-            my_total['name'] = total.name
-            my_total['function'] = total.function
-            my_total['method'] = self.total_functions.get(total.function, 'Sum') 
-            my_total['reset_after_print'] = total.reset_after_print
-            my_total['reset_repeat_section'] = total.reset_repeat_section
-            self.totals[total.name] = self.reset_total(my_total)
             
             
-    def total_calculate(self, field, value):
-        
-        total_name = field.total_id.name
-        my_total = self.totals[total_name]
-        print 'totalise ',field.name,my_total,my_total['function']
-        if my_total['function'] == 'Sum':
-                my_total['total'] = my_total['total'] + self.string_to_value(value)
-        
-        if my_total['function'] == 'Count':
-            my_total['total'] = my_total['total'] + 1
-        
-        if my_total['function'] == 'Average':
-            my_total['total'] = (my_total['total'] + value) / 2 
-  
-        self.totals[total_name] = my_total 
-        
-    def reset_total(self, my_total):
-        '''
-        reset totals for given total and a list functions
-        '''
-        my_total['total'] = 0.
-        return my_total
+          
       
     def get_section_name(self, section_name):
         if self.section_names.has_key(section_name):
@@ -794,14 +785,29 @@ class current_report():
         for key_name, field in section_list.items():
             value = self.load_field_value(field, record)
             self.set_field(self.page_number, field.section, self.bloc_number, field.name, value)
-            if field.total_id and field.source_data != 'Total':
-                self.total_calculate(field, value)
+            self.formula_execute(field,value)
                 
         for key_name, field in section_list.items():
             value = self.get_field(self.page_number, field.section, self.bloc_number, field.name)
             value = self.calculate_field_value(field, value)
             self.set_field(self.page_number, field.section, self.bloc_number, field.name, value)
-    
+            
+            
+            
+    '''
+        the field formula execution
+    '''
+    def formula_execute(self,field,value): 
+       
+        if field.formula:
+            print "valeur courante ",field.name,field.formula,value
+            self.cur_total.cur_value = self.string_to_value(value) 
+            
+            try:
+                exec(field.formula, self.context)
+            except SyntaxError:
+                print 'Formula Error ', field.formula
+
     '''
         the field value is extracted from the current record
     '''
@@ -840,13 +846,10 @@ class current_report():
         the total method reset are evaluated 
     '''
     def value_from_total(self, field):
-        value = ''
-        if field.total_id:
-            my_total = self.totals[field.total_id.name]
-            value = my_total['total']
-            if my_total['reset_after_print']:
-                self.totals[my_total['name']] = self.reset_total(my_total)
-                
+        
+        value = self.cur_total.get_value(field.name)
+        print field.name,value 
+        self.cur_total.reset_after_print(field)
         return value
     
     '''
