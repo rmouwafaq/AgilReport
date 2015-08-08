@@ -71,7 +71,17 @@ class Template(object):
     def get_format(self):
         report = self.content_html.find(id="Report")
         return report["format"]
-    
+    '''
+       return definition report
+    '''
+    def get_definition_report(self):
+        report = self.content_html.find(id="Report")
+        def_report={
+                'format':report['format'] or "portrait",
+                'name':report['name'] or False,
+                'title':report['title'] or False
+                }
+        return def_report
     '''
         get the html section code
     '''
