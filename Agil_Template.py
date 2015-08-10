@@ -129,7 +129,7 @@ class Template(object):
     '''
     def get_all_ids(self):
         return self.get_part_ids(self.report_template)
-    
+   
     '''
         return list of part of the template ids
     '''
@@ -166,10 +166,11 @@ class Template(object):
         element.string=value
     
     def set_value_id(self,id_name,value,type_elem):
-        element=self.report_template.find(attrs={'id':id_name})
-        element['type']=type_elem    
-        element.string=value
-    
+        if self.report_template:
+            element=self.report_template.find(attrs={'id':id_name})
+            element['type']=type_elem    
+            element.string=value
+        
     def get_repeted_bloc(self):
         return copy.deepcopy(self.report_template.find(attrs={"type":"repeted_bloc"}))
     
