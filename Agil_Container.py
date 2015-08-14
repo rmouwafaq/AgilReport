@@ -21,7 +21,7 @@ class Container_doc(object):
     
 class Container(object):
     
-    def __init__(self,file_name):
+    def __init__(self,file_name=None):
         self.col_docs = {}
         self.sequence = 0 
         self.file_name = file_name
@@ -31,8 +31,8 @@ class Container(object):
         new_doc = Container_doc(copy.copy(template),self.sequence,template.get_format())
         self.sequence = self.sequence + 1
         self.col_docs[self.sequence] = new_doc
-        
-    def save(self):
+    
+    def get_preview(self):    
         str_file = soup("""<!DOCTYPE html>
             <html>
                 <head>
@@ -54,12 +54,15 @@ class Container(object):
             for content_element in doc.content:
                 str_file.find(id='Report').append(content_element)
                 str_file.find(id='Report').append(str_file.new_tag("br"))
-        
+    
+        return str_file.prettify()
+    
+    def save(self):
+        str_file = self.get_preview()
         if str_file:     
             if self.file_name != None: 
                 with open(self.file_name, 'w+') as container_file:
-                    container_file.write(str_file.prettify())
-        
+                    container_file.write(str_file)
         return self.file_name
     
     def save_pdf_from_file(self,input,output,orientation='portrait'):
