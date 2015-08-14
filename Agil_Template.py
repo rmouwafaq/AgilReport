@@ -9,10 +9,8 @@ sys.setrecursionlimit(10000)
 class Template(object):
     
     def __init__(self,src_path=None):
-    
         self.content_html = None
         self.report_template = None
-        
         if(src_path):
             self.content_html = self.read(src_path)
             self.report_template = self.content_html.find(attrs={"class":"Page"})
@@ -166,7 +164,7 @@ class Template(object):
         return element.string
     
     def set_value_element(self,element,value):
-        element.string=value
+        element.string = value
     
     def set_value_id(self,id_name,value,type_elem):
         if self.report_template:
