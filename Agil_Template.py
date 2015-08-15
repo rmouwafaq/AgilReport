@@ -152,13 +152,16 @@ class Template(object):
         return self.report_template.find_all(tag_name)
     
     def get_element_id(self,id_name):
-        return self.report_template.find(id=id_name)
+        if self.report_template:
+            return self.report_template.find(id=id_name)
     
     def get_element_class(self,class_name):
-        return self.report_template.find_all(attrs={'class':class_name})
+        if self.report_template:
+            return self.report_template.find_all(attrs={'class':class_name})
         
     def get_element_attribute(self,attribute_name,attribute_value):
-        return self.report_template.find_all(attrs={attribute_name:attribute_value})
+        if self.report_template:
+            return self.report_template.find_all(attrs={attribute_name:attribute_value})
         
     def get_value_element(self,element):
         return element.string
