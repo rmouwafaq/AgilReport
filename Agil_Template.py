@@ -72,14 +72,12 @@ class Template(object):
     '''
        return definition report
     '''
-    def get_definition_report(self):
+    def get_definition_report(self,def_report):
         report = self.content_html.find(id="Report")
         try:
-            def_report={
-                    'format':report['format'] or "portrait",
-                    'name':report['ao-name'] or False,
-                    'title':report['ao-title'] or False
-                    }
+            def_report['format'] = report['format'] or "Portrait"
+            def_report['name']   = report['ao-name'] or False
+            def_report['title']  = report['ao-title'] or False
             return def_report
         except:
             return {}
