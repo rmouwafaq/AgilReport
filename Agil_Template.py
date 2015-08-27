@@ -261,4 +261,19 @@ class Template(object):
                             tag_img["src"]="data:image/jpeg;base64,"+str(images[key])
                         else:
                             bloc.find(id=key).string=str(value).encode("utf-8")
+    
+    
+    def get_data_template(self):
+        
+        sections = ['Report_header','Page_header','Details','Page_footer','Report_footer']
+        template_def = {}
+        
+        for section_name in sections:
+            template_def[section_name]={'max_bloc':self.get_max_bloc_section(section_name),'fields':{}}
+            
+            section = self.get_section(section_name)
+            if(section.find(attrs={'class':'Bloc1'})):
+                bloc=section.find(attrs={'class':'Bloc1'})
+                template_def[section_name]['fields'] = dict(self.get_ids_bloc(bloc))
+        return template_def
                 
