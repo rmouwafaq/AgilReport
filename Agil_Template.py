@@ -20,13 +20,13 @@ class Template(object):
     def read(self,src_path):
         with open(src_path, 'r+') as template_file:
             self.file_content = template_file.read()
-        self.content_html=soup(self.file_content)
+        self.content_html=soup(self.file_content,"lxml")
         self.report_template = self.content_html.find(attrs={"class":"Page"})
     '''
         affecte une page html comme model
     '''    
     def set_content_html(self,page_content):
-        self.content_html = soup(page_content)
+        self.content_html = soup(page_content,"lxml")
         self.report_template = self.content_html.find(attrs={"class":"Page"})        
   
     '''
@@ -276,4 +276,8 @@ class Template(object):
                 bloc=section.find(attrs={'class':'Bloc1'})
                 template_def[section_name]['fields'] = dict(self.get_ids_bloc(bloc))
         return template_def
-                
+    
+    def set_val_attr(self,attribute,attribute_value,new_value):
+        if self.report_template:
+            element=self.content_html.find(attrs={attribute:attribute_value})
+            element[attribute]=new_value
