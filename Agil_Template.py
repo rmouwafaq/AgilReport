@@ -279,3 +279,23 @@ class Template(object):
         if self.report_template:
             element=self.content_html.find(attrs={attribute:attribute_value})
             element[attribute]=new_value
+    def remove_attr(self,element,attr_name):
+        try:
+            del element.attrs[attr_name]
+            return True
+        except:
+            return False
+
+    def set_attr(self,element,attr_name,new_attr_name,attr_value):
+        if(self.remove_attr(element,attr_name)):
+            self.add_attr(element,new_attr_name,attr_value)
+            return True
+        else:
+            return False
+
+    def add_attr(self,element,attr,value):
+        if(element):
+            element[attr]=value
+            return True
+        else:
+            return False
