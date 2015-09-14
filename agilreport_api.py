@@ -16,21 +16,27 @@ CD_ODOO_ADDONS     = os.getcwd()+ '/'+"addons/"
 CD_STATIC_REPORTS  = CD_ODOO_ADDONS + "report_def/static/reports/"
 
 def end_file(file_name,str_end):
-    if not file_name.endswith(str_end):
-        file_name = file_name + str_end
-    return file_name
+    if file_name:
+        if not file_name.endswith(str_end):
+            file_name = file_name + str_end
+        return file_name
+    else:
+        return None
 
-def report_path_names(report):
+def report_path_names(report,folder_template=None):
+    
     env_vars = {}
+    if folder_template == None: 
+        folder_template = 'templates'
     env_vars['report_name'] = report.name
     env_vars['module_name'] = report.module_id.name
     env_vars['json_file_name']   = report.json_file_name
     env_vars['template_file_name'] = end_file(report.template_file_name,'.html')
-    env_vars['template_html'] = report.template_html
+    env_vars['template_html'] = folder_template
     env_vars['xml_file_name'] = end_file(report.xml_file_name,'.xml')  
     
     env_vars['path_json_file'] = CD_STATIC_REPORTS +env_vars['module_name']+"/" + env_vars['report_name']+"/JSON/"   
-    env_vars['path_template_source'] =  CD_ODOO_ADDONS + env_vars['module_name'] + "/templates/"
+    env_vars['path_template_source'] =  CD_ODOO_ADDONS + env_vars['module_name'] + "/" + folder_template + "/"
     env_vars['path_name_output'] = CD_STATIC_REPORTS + env_vars['module_name']+"/"+env_vars['report_name']+"/HTML/"
     env_vars['path_xml_report'] = CD_STATIC_REPORTS + env_vars['module_name']+"/"+env_vars['report_name']+"/report_def/"
     return env_vars
@@ -75,11 +81,13 @@ class oerp_report():
         #save container 
         cur_report.container_pages.save()
         output_file_name = end_file(cur_report.output_file,'.html')
+        
         self.pool.get("report.def").write(cur_report.cursor, 
                                           cur_report.user.id,
                                           [cur_report.report.id],
                                           {'out_template_file_name': output_file_name},
-                                          context=None) 
+                                          context=None)
+         
           
         return {
             'type' : 'ir.actions.client',
@@ -87,7 +95,31 @@ class oerp_report():
             'tag' : 'report.viewer.action',
             'params' : {'report_id': cur_report.report.id,'json_id':cur_report.id_file},
          }
-      
+         
+    def to_preview_bin(self,cur_report):
+        #prepare template
+        template = cur_report.json_out.get_template()
+        template.__class__= Template
+        report_request = self.pool.get("report.def.request")
+        #add template to container
+        cur_report.container_pages.add(template)
+        
+        out_bin = cur_report.container_pages.get_preview()
+        rep_request_id = report_request.create(cur_report.cursor,
+                                               cur_report.user.id,
+                                              {
+                                               'report_id':cur_report.report.id,
+                                               'file_request':cur_report.container_pages.get_preview(),
+                                               },context=None)
+            
+        return {
+                    'type' : 'ir.actions.client',
+                    'name' : 'report_def.Report Viewer Action',
+                    'tag' : 'report.viewer.action',
+                    'params' : {'id':rep_request_id},
+                    
+                } 
+        
     def start_report(self,attributes):
         cur_report = self.declare_report(attributes)
         return self.set_report(cur_report,attributes.get('record_list',None))
@@ -102,7 +134,7 @@ class oerp_report():
             cur_report.total_page = cur_report.page_number    
             self.create_json(cur_report)
             cur_report.container_pages = self.set_preview(cur_report)
-            return self.to_preview(cur_report)
+            return self.to_preview_bin(cur_report)
         return False 
 
 
@@ -405,6 +437,7 @@ class current_report():
         self.initialize(context)
         
     def initialize(self, context):
+        
         self.time = time.strftime("%H:%M:%S")
         self.now  = datetime.datetime.now()
         self.total_page = 0 
@@ -412,12 +445,13 @@ class current_report():
         self.cursor  = context.get('cr',None)
         self.pool    = context.get('pool',None)
         self.user    = context.get('user',None)
+        folder_template = context.get('folder_template','templates')
         user_context = context.get('context',None)
         self.company= context.get('company',None)
         self.form_data = context.get('datas',None)
         
         # init path files 
-        self.env_vars = report_path_names(self.report)
+        self.env_vars = report_path_names(self.report,folder_template)
 
         self.pages = collections.OrderedDict()
         self.images = collections.OrderedDict()
