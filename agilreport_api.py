@@ -166,7 +166,7 @@ class ao_json(object):
         time_now  = str(today.time())[0:8]
         report_name = cur_report
         cur_report.output_file = cur_report.env_vars['json_file_name'] + "_" + str(today.date()) + "_" + time_now 
-        json_name   = cur_report.output_file + ".json"
+        json_name   = end_file(cur_report.output_file,'.json')
         cur_report.path_json_file = cur_report.env_vars['path_json_file'] + json_name
         return json_name
     
