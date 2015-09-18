@@ -41,26 +41,33 @@ class Template(object):
     '''
     def save_pdf_from_file(self,input,output,orientation='portrait'):
         options = {
-                   'zoom':'0.8',
-                   'margin-top':'10mm',
-                   'margin-bottom':'0.0mm',
-                   'orientation':orientation,    
-                   'print-media-type':'',
-                   }
-        pdfkit.from_file(input,output,options=options)
+                'page-size':'A4',
+                'margin-top':'0cm',
+                'margin-right':'0cm',
+                'margin-bottom':'0cm',
+                'margin-left':'0cm',
+                'orientation':orientation,    
+                'print-media-type':'',
+    
+        }
+        config = pdfkit.configuration(wkhtmltopdf='/usr/bin/wkhtmltopdf')
+        return pdfkit.from_file(input,output,options=options,configuration=config)
     
     '''
        save pdf from string FIXME replace pdfkit.from_file by pdfkit.from_string
     '''
     def save_pdf_from_string(self,input,output,orientation='portrait'):
         options = {
-                   'zoom':'0.8',
-                   'margin-top':'10mm',
-                   'margin-bottom':'0.0mm',
-                   'orientation':orientation,    
-                   'print-media-type':'',
-                   }
-        pdfkit.from_file(input,output,options=options)
+                'page-size':'A4',
+                'margin-top':'0cm',
+                'margin-right':'0cm',
+                'margin-bottom':'0cm',
+                'margin-left':'0cm',
+                'orientation':orientation,    
+                'print-media-type':'',
+        }
+        config = pdfkit.configuration(wkhtmltopdf='/usr/bin/wkhtmltopdf')
+        pdfkit.from_string(input,output,options=options,configuration=config)
     
     
     '''
