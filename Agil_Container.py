@@ -9,12 +9,14 @@ sys.setrecursionlimit(10000)
 
 class Container_doc(object):
     
-    def __init__(self,template,sequence,doc_type):
-        template.__class__= Template
-        content = template.content_html
+    def __init__(self,template,content,sequence,doc_type):
+        if template: 
+            template.__class__= Template
+            content = template.content_html
+            
         content_pages = content.find_all(attrs={'class':'Page_container'})
         for page in content_pages:
-            page['format']=doc_type
+            page['format'] = doc_type
         self.content = content_pages
         self.doc_type = doc_type
         self.sequence = sequence
@@ -28,9 +30,22 @@ class Container(object):
     
     def add(self,template):
         template.__class__= Template
-        new_doc = Container_doc(copy.copy(template),self.sequence,template.get_format())
+        new_doc = Container_doc(copy.copy(template),None,self.sequence,template.get_format())
         self.sequence = self.sequence + 1
         self.col_docs[self.sequence] = new_doc
+    
+    def add_content(self,content):
+        doc_type = 'portrait'
+        report = content.find(id="Report")
+        if report:
+            doc_type = report["format"]
+        new_doc = Container_doc(None,
+                                copy.copy(content),
+                                self.sequence,
+                                doc_type)
+        self.sequence = self.sequence + 1
+        self.col_docs[self.sequence] = new_doc
+    
     
     def get_preview(self):    
         str_file = soup("""<!DOCTYPE html>

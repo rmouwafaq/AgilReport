@@ -27,7 +27,8 @@ class Template(object):
     '''    
     def set_content_html(self,page_content):
         self.content_html = soup(page_content,"lxml")
-        self.report_template = self.content_html.find(attrs={"class":"Page"})        
+        self.report_template = self.content_html.find(attrs={"class":"Page"})   
+        return self.content_html      
   
     '''
         Enregistrement de la template en cours
@@ -158,7 +159,12 @@ class Template(object):
     
     def get_element_id(self,id_name):
         if self.report_template:
-            return self.report_template.find(id=id_name)
+            elet = self.report_template.find(id=id_name)
+            if elet :
+                return elet
+            else:
+                return False
+    
     
     def get_element_class(self,class_name):
         if self.report_template:
