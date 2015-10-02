@@ -8,12 +8,13 @@ import os
 import sys
 from Agil_Template import Template
 from Agil_Container import Container
+from openerp.modules import module
 sys.setrecursionlimit(10000)
 
 #====================================================================
 # Directories  
-CD_ODOO_ADDONS     = os.getcwd()+ '/'+"addons/" 
-CD_STATIC_REPORTS  = CD_ODOO_ADDONS + "report_def/static/reports/"
+#CD_ODOO_ADDONS     = os.getcwd()+ '/'+"addons/" 
+CD_STATIC_REPORTS  = module.get_module_path('report_def')+"/static/reports/" #CD_ODOO_ADDONS + "report_def/static/reports/"
 
 def end_file(file_name,str_end):
     if file_name:
@@ -36,7 +37,7 @@ def report_path_names(report,folder_template=None):
     env_vars['xml_file_name'] = end_file(report.xml_file_name,'.xml')  
     
     env_vars['path_json_file'] = CD_STATIC_REPORTS +env_vars['module_name']+"/" + env_vars['report_name']+"/JSON/"   
-    env_vars['path_template_source'] =  CD_ODOO_ADDONS + env_vars['module_name'] + "/" + folder_template + "/"
+    env_vars['path_template_source'] =  module.get_module_path(env_vars['module_name'])  + "/" + folder_template + "/"
     env_vars['path_name_output'] = CD_STATIC_REPORTS + env_vars['module_name']+"/"+env_vars['report_name']+"/HTML/"
     env_vars['path_xml_report'] = CD_STATIC_REPORTS + env_vars['module_name']+"/"+env_vars['report_name']+"/report_def/"
     return env_vars
