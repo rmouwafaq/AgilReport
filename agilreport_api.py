@@ -187,16 +187,16 @@ class ao_json(object):
         if self.create_folder(path_folder):
             pass 
         
-        path_folder = path_folder + '/' + cur_report.env_vars['module_name']
+        path_folder = path_folder + '/' + cur_report.env_vars['module_name'] + '/'
         if self.create_folder(path_folder):
             #folders to store html and pdf files
-            if(self.create_folder(path_folder + '/' + cur_report.env_vars['report_name'] )):
-                self.create_folder(path_folder + '/' + cur_report.env_vars['report_name'] +'/HTML')
-                self.create_folder(path_folder + '/' + cur_report.env_vars['report_name'] +'/PDF')
+            if(self.create_folder(path_folder +  cur_report.env_vars['report_name'] )):
+                self.create_folder(path_folder + cur_report.env_vars['report_name'] +'/HTML')
+                self.create_folder(path_folder + cur_report.env_vars['report_name'] +'/PDF')
                 #folder to store json files
-                path_folder = path_folder + '/' + cur_report.env_vars['report_name'] +'/JSON'
+                path_folder = path_folder + cur_report.env_vars['report_name'] +'/JSON/'
                 if self.create_folder(path_folder):
-                    file_name = path_folder + '/' + self.json_name
+                    file_name = path_folder + self.json_name
                     # Write JSON file from the object
                     with open(file_name, 'w') as json_file:
                         json.dump(myreport, json_file, indent=4)
