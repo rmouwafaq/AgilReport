@@ -4,7 +4,6 @@ from bs4 import BeautifulSoup as soup
 from Agil_Template import Template
 import copy
 import sys
-import datetime
 sys.setrecursionlimit(10000)
 
 class Container_doc(object):
