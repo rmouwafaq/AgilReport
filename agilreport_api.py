@@ -105,27 +105,18 @@ class oerp_report():
         #add template to container
         cur_report.container_pages.add(template)
         
-        out_bin = cur_report.container_pages.get_preview()
-        rep_request_id = report_request.create(cur_report.cursor,
-                                               cur_report.user.id,
-                                              {
-                                               'report_id':cur_report.report.id,
-                                               'file_request':cur_report.container_pages.get_preview(),
-                                               },context=None)
-            
-        return {
-                    'type' : 'ir.actions.client',
-                    'name' : 'report_def.Report Viewer Action',
-                    'tag' : 'report.viewer.action',
-                    'params' : {'id':rep_request_id},
-                    
-                } 
+        return cur_report.container_pages.get_preview()
         
+                
     def start_report(self,attributes):
         cur_report = self.declare_report(attributes)
-        return self.set_report(cur_report,attributes.get('record_list',None))
-        
-    def set_report(self,cur_report,recordlist): 
+        record_list = attributes.get('record_list',[])
+        if attributes.get('bin_report',False):
+            return self.prepare_report(cur_report,record_list)
+        else:
+            return self.set_report(cur_report,attributes.get('record_list',None))
+    
+    def prepare_report(self,cur_report,recordlist): 
         if cur_report.report: 
             result = cur_report.execute_query(recordlist)
             if cur_report.report.type == 'formulary':
@@ -136,7 +127,16 @@ class oerp_report():
             self.create_json(cur_report)
             cur_report.container_pages = self.set_preview(cur_report)
             return self.to_preview_bin(cur_report)
-        return False 
+    
+    def set_report(self,cur_report,recordlist):
+        out_bin = self.prepare_report(cur_report,recordlist)
+        if  out_bin:
+            return report_request.set_action_request_report(cur_report.cursor,
+                                                 cur_report.user.id, 
+                                                 cur_report.report.id, 
+                                                 out_bin,
+                                                 context)
+
 
 
 class ao_report_json_files(object):
