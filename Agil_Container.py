@@ -9,16 +9,19 @@ sys.setrecursionlimit(10000)
 class Container_doc(object):
     
     def __init__(self,template,content,sequence,doc_type):
+        self.content=""
         if template: 
             template.__class__= Template
             content = template.content_html
             
         content_pages = content.find_all(attrs={'class':'Page_container'})
-        for page in content_pages:
-            page['format'] = doc_type
-        self.content = content_pages
-        self.doc_type = doc_type
-        self.sequence = sequence
+        if(content_pages):
+            if not content_pages[0].has_attr('format'):
+                for page in content_pages:
+                    page['format'] = doc_type
+            self.content = content_pages
+            self.doc_type = doc_type
+            self.sequence = sequence
     
 class Container(object):
     
