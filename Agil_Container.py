@@ -37,10 +37,10 @@ class Container(object):
         self.col_docs[self.sequence] = new_doc
     
     def add_content(self,content):
-        doc_type = 'portrait'
         report = content.find(id="Report")
         if report:
-            doc_type = report["format"]
+            doc_type = report.get('format','Portrait')
+            print 'add_content ---->',doc_type
         new_doc = Container_doc(None,
                                 copy.copy(content),
                                 self.sequence,
@@ -59,7 +59,7 @@ class Container(object):
                 </head>
                 <body id="viewer">
                     <!-- Debut de Rapport -->
-                    <div id="Report" format="portrait">
+                    <div id="Report">
                         
                     </div>
                     <!-- Fin de Rapport -->
