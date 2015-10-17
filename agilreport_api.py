@@ -375,7 +375,6 @@ class report_total():
         if cur_val == None: 
             cur_val = self.cur_value  
         cur_total = getattr(self,total_name,0) 
-        print 'total courant ',cur_total
         cur_total += cur_val
         self.set_total(total_name, cur_total)
         return cur_total
@@ -835,7 +834,6 @@ class current_report():
     def formula_execute(self,field,value): 
        
         if field.formula:
-            print "valeur courante ",field.name,field.formula,value
             self.cur_total.cur_value = self.string_to_value(value) 
             
             try:
@@ -883,7 +881,6 @@ class current_report():
     def value_from_total(self, field):
         
         value = self.cur_total.get_value(field.name)
-        print field.name,value 
         self.cur_total.reset_after_print(field)
         return value
     

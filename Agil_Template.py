@@ -83,12 +83,12 @@ class Template(object):
     def get_definition_report(self,def_report):
         report = self.content_html.find(id="Report")
         try:
-            def_report['format'] = report['format'] or "Portrait"
+            def_report['format'] = report['format'] or "Landscape"
             def_report['name']   = report['ao-name'] or False
             def_report['title']  = report['ao-title'] or False
             return def_report
         except:
-            return {}
+            return def_report
     '''
         get the html section code
     '''
