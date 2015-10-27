@@ -537,10 +537,9 @@ class current_report():
         if not value:
             value = '' 
         if field.field_type in ('Number','Double','Integer','List'):
-            value = str(value)
+            return str(value)
         else:
-            value = "'" + value + "'"
-        return value
+            return "'" + value + "'"
     
             
     def get_max_bloc_section(self, section_name):
@@ -551,12 +550,6 @@ class current_report():
                 break
         return max_bloc 
             
-        
-    
-            
-            
-          
-      
     def get_section_name(self, section_name):
         if self.section_names.has_key(section_name):
             return self.section_names[section_name]
@@ -753,8 +746,7 @@ class current_report():
         get a page section bloc
     '''
     def page_get_section_bloc(self, page_number, section_name, bloc_number):
-        mypage_section_bloc = self.get_page_section_bloc(page_number, section_name, bloc_number)
-        return mypage_section_bloc
+        return self.get_page_section_bloc(page_number, section_name, bloc_number)
     
     '''
         not used yet 
@@ -815,16 +807,24 @@ class current_report():
     def evaluate_fields(self, section_name, record):
         
         section_list = self.get_section_fields(section_name)
-        mysection_page = self.get_page_section(self.page_number, section_name)
+        mypage_section_bloc = self.get_page_section_bloc(self.page_number, 
+                                                             section_name, 
+                                                             self.bloc_number)
+            
+        #mysection_page = self.get_page_section(self.page_number, section_name)
         for key_name, field in section_list.items():
             value = self.load_field_value(field, record)
-            self.set_field(self.page_number, field.section, self.bloc_number, field.name, value)
-            self.formula_execute(field,value)
+            
+            mypage_section_bloc[field.name] = self.calculate_field_value(field, value)
+         
+            #mypage_section_bloc[field.name] = value
+            #self.set_field(self.page_number, field.section, self.bloc_number, field.name, value)
+            self.formula_execute(field,mypage_section_bloc[field.name])
                 
-        for key_name, field in section_list.items():
-            value = self.get_field(self.page_number, field.section, self.bloc_number, field.name)
-            value = self.calculate_field_value(field, value)
-            self.set_field(self.page_number, field.section, self.bloc_number, field.name, value)
+        #for key_name, field in section_list.items():
+        #    value = self.get_field(self.page_number, field.section, self.bloc_number, field.name)
+        #    value = self.calculate_field_value(field, value)
+            #self.set_field(self.page_number, field.section, self.bloc_number, field.name, value)
             
             
             
@@ -891,46 +891,50 @@ class current_report():
         value = ''
         if record:
             if field.source_data == 'Model':
-                value = self.value_from_model(field, record)
+                return self.value_from_model(field, record)
                 
         if field.source_data == 'Form':
-            value = self.value_from_form(field)
-        
-        if field.source_data == 'Context':
-            value = self.value_from_context(field)
-        
-        if field.source_data == 'Total':
-            value = self.value_from_total(field)
+            return self.value_from_form(field)
+        elif field.source_data == 'Context':
+            return self.value_from_context(field)
+        elif field.source_data == 'Total':
+            return self.value_from_total(field)
             
         return value
     
+    def format_field_value(self,field,value):
+        if field.field_format_id and field.field_format_id.format:
+            amount = self.string_to_value(value)
+            return field.field_format_id.format(amount)
+        return value
+            
+        
     '''
        the field value is extracted from stored static images   
     '''
     def field_static_image(self, field, value):
-        
-        if field.field_type == 'Static Image':
-            if not self.images.has_key(field.name): 
-                self.images[field.name] = value
-            value = 'StaticImage'
-            
-        return value
+        if not self.images.has_key(field.name): 
+            self.images[field.name] = value
+        return 'StaticImage'
     
     '''
         part of the code reserved for the injection of values by external methods (python, html ...)
     '''
     def calculate_field_value(self, field, value):
 
+        value = self.format_field_value(field,value)
+        
         if field.source_data == 'Function':
-            value = 'my_function'
+            return 'my_function'
         
-        if field.source_data == 'Computed':
-            value = eval(field.expression, self.context)
+        elif field.source_data == 'Computed':
+            return eval(field.expression, self.context)
         
-        if field.source_data == 'Html':
-            value = 'my_html'
+        elif field.source_data == 'Html':
+            return 'my_html'
         
-        value = self.field_static_image(field, value)
+        elif field.field_type == 'Static Image':
+            return self.field_static_image(field, value)
         return value
     
     
