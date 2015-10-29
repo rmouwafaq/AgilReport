@@ -673,7 +673,7 @@ class current_report():
     def print_end(self,record):
         if self.bloc_number <=  self.max_bloc_details:
             while self.bloc_number <= self.max_bloc_details:
-                self.evaluate_fields('Details',False)
+                self.evaluate_fields('Details',False,False)
                 self.bloc_number += 1 
                 
             self.end_page(record)
@@ -804,7 +804,7 @@ class current_report():
        for a given section, all fields total type are calculated first
        Then fields are evaluated and retrieve their values
     '''
-    def evaluate_fields(self, section_name, record):
+    def evaluate_fields(self, section_name, record=False,val_format=True):
         
         section_list = self.get_section_fields(section_name)
         mypage_section_bloc = self.get_page_section_bloc(self.page_number, 
@@ -815,16 +815,11 @@ class current_report():
         for key_name, field in section_list.items():
             value = self.load_field_value(field, record)
             
-            mypage_section_bloc[field.name] = self.calculate_field_value(field, value)
-         
-            #mypage_section_bloc[field.name] = value
-            #self.set_field(self.page_number, field.section, self.bloc_number, field.name, value)
-            self.formula_execute(field,mypage_section_bloc[field.name])
-                
-        #for key_name, field in section_list.items():
-        #    value = self.get_field(self.page_number, field.section, self.bloc_number, field.name)
-        #    value = self.calculate_field_value(field, value)
-            #self.set_field(self.page_number, field.section, self.bloc_number, field.name, value)
+            value = self.calculate_field_value(field, value)
+            self.formula_execute(field,value)
+            if val_format:
+                value = self.format_field_value(field,value)
+            mypage_section_bloc[field.name] = value
             
             
             
@@ -889,9 +884,8 @@ class current_report():
     '''
     def load_field_value(self, field, record=False):
         value = ''
-        if record:
-            if field.source_data == 'Model':
-                return self.value_from_model(field, record)
+        if record and field.source_data == 'Model':
+            return self.value_from_model(field, record)
                 
         if field.source_data == 'Form':
             return self.value_from_form(field)
@@ -904,8 +898,11 @@ class current_report():
     
     def format_field_value(self,field,value):
         if field.field_format_id and field.field_format_id.format:
-            amount = self.string_to_value(value)
-            return field.field_format_id.format(amount)
+            if field.field_type in ('Number','Double','Integer','Currency'):
+                amount = self.string_to_value(value)
+                str_format = str(field.field_format_id.format)
+                return str_format.format(amount)
+            #('String', 'List','Dict','Date','Time','Image','Static Image')
         return value
             
         
@@ -921,8 +918,6 @@ class current_report():
         part of the code reserved for the injection of values by external methods (python, html ...)
     '''
     def calculate_field_value(self, field, value):
-
-        value = self.format_field_value(field,value)
         
         if field.source_data == 'Function':
             return 'my_function'
