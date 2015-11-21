@@ -123,7 +123,6 @@ class oerp_report():
                 cur_report.print_record_list(result)
             else:
                 cur_report.print_record_list(result)
-            cur_report.total_page = cur_report.page_number    
             self.create_json(cur_report)
             cur_report.container_pages = self.set_preview(cur_report)
             return self.to_preview_bin(cur_report)
@@ -365,12 +364,25 @@ class ao_report_json_files(object):
 
 
 class report_total():
-    def __init__(self,totals):
+    def __init__(self,totals,section_names,deferred=False):
         self.cur_value = 0
         self.totals = totals
-        for total in totals:
-            self.set_total(total.name,0)
+        self.deferred = deferred
     
+        self.deferred_fileds = {}    
+        self.reset_totals()
+
+        for total in self.totals:
+            if deferred:
+                for field in section_names.values():
+                    if total.total_field_id:
+                        if total.total_field_id.id == field.id:
+                            self.deferred_fileds[field.id] = total
+                            
+    def reset_totals(self):
+        for total in self.totals:
+            self.set_total(total.name,0)
+        
     def sum(self,total_name, cur_val = None):
         if cur_val == None: 
             cur_val = self.cur_value  
@@ -399,7 +411,13 @@ class report_total():
     def reset_after_print(self,total):
         if total.reset_after_print:
             self.set_total(total.name,0)
-        
+    
+    def get_deferred_totals(self,field_id):
+        if self.deferred_fileds.has_key(field_id):
+            return self.get_value(self.deferred_fileds[field_id].name)
+        else:
+            return ''
+            
          
 class current_report():
     
@@ -440,7 +458,8 @@ class current_report():
         
         self.time = time.strftime("%H:%M:%S")
         self.now  = datetime.datetime.now()
-        self.total_page = 0 
+        self.total_page = 0
+        self.total_folio = 0
         self.report  = context.get('report',None)
         self.cursor  = context.get('cr',None)
         self.pool    = context.get('pool',None)
@@ -456,6 +475,7 @@ class current_report():
         self.pages = collections.OrderedDict()
         self.images = collections.OrderedDict()
         self.page_number = 0
+        self.page_folio  = 0 
         self.bloc_number = 1
         self.json_out = None
         self.id_file = None
@@ -487,7 +507,9 @@ class current_report():
         self.max_bloc_details = self.get_max_bloc_section('Details')
 
         self.totals = self.get_source_data_fields('Total')       
-        self.cur_total = report_total(self.totals)     
+        self.cur_total = report_total(self.totals,
+                                      self.section_names['Details'],
+                                      self.report.deferred_total)     
         self.context['total'] = self.cur_total
         self.key_group()
     
@@ -613,7 +635,7 @@ class current_report():
         lst_records = []
         all_lists    = []
         key_name = ""
-        
+         
         if(self.field_key_group) and len(results)>0:
             key_name = self.field_key_group[0]
             first_record = results[0]
@@ -621,7 +643,13 @@ class current_report():
             for record in results:
                 if record[key_name]==key_value_change:
                     lst_records.append(record)
+                    cur_row +=1 
+                    if cur_row> self.max_bloc_details:
+                        self.total_page  +=1
                 else:
+                    self.total_folio +=1
+                    self.total_page  +=1
+                    cur_row = 1
                     all_lists.append(lst_records)
                     lst_records=[]
                     lst_records.append(record)
@@ -632,6 +660,8 @@ class current_report():
         else:
             if len(results):
                 all_lists.append(results)
+                if self.max_bloc_details>0:
+                    self.total_page = int(len(all_list) /self.max_bloc_details) 
 
         return all_lists
 
@@ -641,7 +671,9 @@ class current_report():
     def print_record_list(self,results):
         all_lists = self.sort_record_list(results)
         for list_record in all_lists:
-            
+            if self.report.reset_total_by_group:
+                self.cur_total.reset_totals()
+            self.page_folio  = 0     
             for record in list_record:
                 self.print_line(record)
                 
@@ -653,13 +685,13 @@ class current_report():
     def print_line(self,record):
         if self.bloc_number == 1:
             # create a new first page
-            self.new_page(record)
+            self.new_page(record,False)
         
         # checked if necessary to change page details
         if self.bloc_number >  self.max_bloc_details:
             self.end_page(record)
             # Create a next page
-            self.new_page(record)
+            self.new_page(record,True)
         
         # process body for any record
         self.evaluate_fields('Details',record)
@@ -682,12 +714,15 @@ class current_report():
         start a new page
         print Page Header and Report Header 
     '''
-    def new_page(self, record):
+    def new_page(self, record,deferred = False):
         self.page_number += 1
+        self.page_folio  += 1
         self.bloc_number = 1
         self.evaluate_fields('Report_header', record)
         self.evaluate_fields('Page_header', record)
-    
+        if deferred and self.cur_total.deferred:
+            self.evaluate_fields('Details',record,True,True)
+            self.bloc_number += 1
     '''
         ended page 
         print Page Footer and Report Footer
@@ -804,7 +839,7 @@ class current_report():
        for a given section, all fields total type are calculated first
        Then fields are evaluated and retrieve their values
     '''
-    def evaluate_fields(self, section_name, record=False,val_format=True):
+    def evaluate_fields(self, section_name, record=False,val_format=True,deferred=False):
         
         section_list = self.get_section_fields(section_name)
         mypage_section_bloc = self.get_page_section_bloc(self.page_number, 
@@ -813,15 +848,21 @@ class current_report():
             
         #mysection_page = self.get_page_section(self.page_number, section_name)
         for key_name, field in section_list.items():
-            value = self.load_field_value(field, record)
             
-            value = self.calculate_field_value(field, value)
-            self.formula_execute(field,value)
-            if val_format:
+            if deferred:
+                value = self.cur_total.get_deferred_totals(field.id)
+                if self.report.deferred_label_field:
+                    if field.id == self.report.deferred_label_field.id:
+                        value = self.report.deferred_label
+            else:
+                value = self.load_field_value(field, record)
+                value = self.calculate_field_value(field, value)
+                self.formula_execute(field,value)
+            
+            if val_format and value:
                 value = self.format_field_value(field,value)
+
             mypage_section_bloc[field.name] = value
-            
-            
             
     '''
         the field formula execution
@@ -919,7 +960,13 @@ class current_report():
     '''
     def calculate_field_value(self, field, value):
         
-        if field.source_data == 'Function':
+        if field.source_data == 'Page':
+            return self.page_number
+       
+        elif field.source_data == 'Folio':
+            return self.page_folio
+        
+        elif field.source_data == 'Function':
             return 'my_function'
         
         elif field.source_data == 'Computed':
