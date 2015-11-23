@@ -62,7 +62,9 @@ class oerp_report():
       # Write JSON file 
         my_json_report = ao_json(cur_report)
         name_file = my_json_report.to_file(cur_report)
+        print 'Json write file'
         cur_report.id_file = my_json_report.save_file(cur_report)
+        print 'Json saved in DB'
         cur_report.json_out = json_to_report(cur_report)
     
     def set_preview(self,cur_report):
@@ -123,7 +125,9 @@ class oerp_report():
                 cur_report.print_record_list(result)
             else:
                 cur_report.print_record_list(result)
+            print 'preparing JSON report'
             self.create_json(cur_report)
+            print 'previewing report'
             cur_report.container_pages = self.set_preview(cur_report)
             return self.to_preview_bin(cur_report)
     
@@ -635,6 +639,7 @@ class current_report():
         lst_records = []
         all_lists    = []
         key_name = ""
+        cur_row = 0 
          
         if(self.field_key_group) and len(results)>0:
             key_name = self.field_key_group[0]
@@ -661,7 +666,7 @@ class current_report():
             if len(results):
                 all_lists.append(results)
                 if self.max_bloc_details>0:
-                    self.total_page = int(len(all_list) /self.max_bloc_details) 
+                    self.total_page = int(len(all_lists) /self.max_bloc_details) 
 
         return all_lists
 
@@ -669,7 +674,9 @@ class current_report():
      print a  list of records 
     '''
     def print_record_list(self,results):
+        print 'Sorting report'
         all_lists = self.sort_record_list(results)
+        print 'prepare report'
         for list_record in all_lists:
             if self.report.reset_total_by_group:
                 self.cur_total.reset_totals()
@@ -963,8 +970,15 @@ class current_report():
         if field.source_data == 'Page':
             return self.page_number
        
+        elif field.source_data == 'Page':
+            return self.total_page
+       
         elif field.source_data == 'Folio':
             return self.page_folio
+        
+        elif field.source_data == 'Folios':
+            return self.total_folio
+        
         
         elif field.source_data == 'Function':
             return 'my_function'
