@@ -217,8 +217,11 @@ class Template(object):
         modele_page = copy.deepcopy(self.content_html.find(attrs={"class":"Page_container"}))
         self.content_html.find(id="Report").clear()
         for i in xrange(0,count_page,1):
-            self.content_html.find(id="Report").append(copy.deepcopy(modele_page))
+            copy_page=copy.deepcopy(modele_page)
+            self.content_html.find(id="Report").append(copy_page)
             self.content_html.find(id="Report").append(self.content_html.new_tag("br"))
+            del copy_page
+        del modele_page
         
     def duplicate_bloc(self,page_index,count_bloc,modele_bloc,footer_bloc=None):
         pages = self.content_html.find_all(attrs={"class":"body_table"})
@@ -229,7 +232,9 @@ class Template(object):
             del mb
             
         if(footer_bloc!=None):
-            pages[page_index].append(copy.deepcopy(footer_bloc))
+            fb = copy.deepcopy(footer_bloc)
+            pages[page_index].append(fb)
+            del fb
         
         if(self.content_html.find(attrs={"class":"pagination"})):
             pag=self.content_html.find_all(attrs={"class":"pagination"})
@@ -259,13 +264,13 @@ class Template(object):
                     id_bloc.string=str(value[id_bloc['id']]) 
     
     def set_values_section(self,page_index,section_name,images,key_bloc,values_bloc):
-        pages=self.content_html.find_all(attrs={"class":"Page"})
-        section=pages[page_index].find(attrs={"class":section_name})
-        blocs=section.find_all(attrs={"class":key_bloc})
+        
+        pages = self.content_html.find_all(attrs={"class":"Page"})
+        section = pages[page_index].find(attrs={"class":section_name})
+        blocs = section.find_all(attrs={"class":key_bloc})
         for bloc in blocs:
             if(bloc):
                 for key,value in values_bloc.iteritems():
-                    
                     if(bloc.find(id=key)):
                         if(bloc.find(id=key).name=="img"):
                             tag_img=bloc.find(id=key)

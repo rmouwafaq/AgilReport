@@ -68,6 +68,7 @@ class oerp_report():
         cur_report.json_out = json_to_report(cur_report)
     
     def set_preview(self,cur_report):
+        cur_report.output_file = cur_report.env_vars['json_file_name']
         container_file = cur_report.env_vars['path_name_output'] + end_file(cur_report.output_file,'.html')  
         #create new container
         cur_report.container_pages = Container(container_file)
@@ -126,7 +127,8 @@ class oerp_report():
             else:
                 cur_report.print_record_list(result)
             print 'preparing JSON report'
-            self.create_json(cur_report)
+            #self.create_json(cur_report)
+            cur_report.json_out = json_to_report(cur_report)
             print 'previewing report'
             cur_report.container_pages = self.set_preview(cur_report)
             return self.to_preview_bin(cur_report)
@@ -244,33 +246,28 @@ class json_to_report():
         count_bloc = cur_report.get_max_bloc_section('Details')
         self.template.copie_bloc({"class":"body_table"},count_bloc,model_bloc)
         
-        self.data = self.read_json_file(cur_report.path_json_file)
-        pages     = self.data["Report"]["Pages"]
-        images    = self.data["Report"]["Images"]
-        nombre_page = len(pages.keys())
+        
+        #self.data = self.read_json_file(cur_report.path_json_file)
+        #pages     = self.data["Report"]["Pages"]
+        #images    = self.data["Report"]["Images"]
+        
+        nombre_page = len(cur_report.pages.keys())
         self.template.duplicate_page(nombre_page)
         page_index = 0
-        for page_key,page_value in pages.iteritems():
+        for page_key,page_value in cur_report.pages.iteritems():
             #------------------section Report header ----------------------
-            self.data_merge_section(self.template,page_index,page_value,images,'Report_header')
-            
+            self.data_merge_section(self.template,page_index,page_value,cur_report.images,'Report_header')
             #------------------section Page Header ---------------------- 
-            self.data_merge_section(self.template,page_index,page_value,images,'Page_header')
-             
+            self.data_merge_section(self.template,page_index,page_value,cur_report.images,'Page_header')
             #------------------section Details --------------------------
-            self.data_merge_section(self.template,page_index,page_value,images,'Details')
-         
+            self.data_merge_section(self.template,page_index,page_value,cur_report.images,'Details')
             #------------------section Page footer ----------------------
-            self.data_merge_section(self.template,page_index,page_value,images,'Page_footer')
-             
+            self.data_merge_section(self.template,page_index,page_value,cur_report.images,'Page_footer')
             #------------------section Report footer ----------------------
-            self.data_merge_section(self.template,page_index,page_value,images,'Report_footer')
-                
+            self.data_merge_section(self.template,page_index,page_value,cur_report.images,'Report_footer')
             #---------------------------------------------------------
-            page_index = page_index+1
-       # self.template.copie(self.path_name_output + self.file_template)
-       # self.template.save_pdf_from_file(self.path_name_output + self.file_template, self.path_name_output + 'pos_order_details.pdf')
-        
+            page_index += 1
+         
         
     
     def data_merge_section(self,temp,page_index,page_value,images,report_section):
