@@ -213,11 +213,29 @@ class Template(object):
             return True
         return False
     
+    def create_model_page(self):
+        self.modele_page = copy.deepcopy(self.content_html.find(attrs={"class":"Page_container"}))
+        self.content_html.find(id="Report").clear()
+        return self.modele_page
+    
+    def destroy_model_page(self):
+        del self.modele_page
+        
+    def create_page_copy(self):
+        copy_page = copy.deepcopy(self.modele_page)
+        return copy_page 
+        
+    def add_page(self,copy_page):
+        self.content_html.find(id="Report").append(copy_page)
+        self.content_html.find(id="Report").append(self.content_html.new_tag("br"))
+        del copy_page
+    
+         
     def duplicate_page(self,count_page):
         modele_page = copy.deepcopy(self.content_html.find(attrs={"class":"Page_container"}))
         self.content_html.find(id="Report").clear()
         for i in xrange(0,count_page,1):
-            copy_page=copy.deepcopy(modele_page)
+            copy_page = copy.deepcopy(modele_page)
             self.content_html.find(id="Report").append(copy_page)
             self.content_html.find(id="Report").append(self.content_html.new_tag("br"))
             del copy_page
@@ -263,6 +281,21 @@ class Template(object):
                 if(value.has_key(id_bloc['id'])):
                     id_bloc.string=str(value[id_bloc['id']]) 
     
+    
+    def page_set_section_values(self,my_page,section_name,images,key_bloc,values_bloc):
+        
+        section = my_page.find(attrs={"class":section_name})
+        blocs   = section.find_all(attrs={"class":key_bloc})
+        for bloc in blocs:
+            if(bloc):
+                for key,value in values_bloc.iteritems():
+                    if(bloc.find(id=key)):
+                        if(bloc.find(id=key).name=="img"):
+                            tag_img=bloc.find(id=key)
+                            tag_img["src"]="data:image/jpeg;base64,"+str(images[key])
+                        else:
+                            bloc.find(id=key).string=str(value).encode("utf-8")
+                            
     def set_values_section(self,page_index,section_name,images,key_bloc,values_bloc):
         
         pages = self.content_html.find_all(attrs={"class":"Page"})

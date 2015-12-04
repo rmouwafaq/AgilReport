@@ -126,10 +126,10 @@ class oerp_report():
                 cur_report.print_record_list(result)
             else:
                 cur_report.print_record_list(result)
-            print 'preparing JSON report'
+            #print 'preparing JSON report'
             #self.create_json(cur_report)
-            cur_report.json_out = json_to_report(cur_report)
-            print 'previewing report'
+            cur_report.json_out = json_fast_to_report(cur_report)
+            #print 'previewing report'
             cur_report.container_pages = self.set_preview(cur_report)
             return self.to_preview_bin(cur_report)
     
@@ -218,6 +218,77 @@ class ao_json(object):
             return True
     
 #   
+class json_fast_to_report():
+    
+    
+    def __init__(self,cur_report):
+        self.html_template        = cur_report.env_vars.get('template_html', None) 
+        self.path_template_source = cur_report.env_vars.get('path_template_source', None) 
+        self.file_template        = cur_report.env_vars.get('template_file_name', None) 
+        self.path_name_output     = cur_report.env_vars.get('path_name_output', None) 
+       
+        if self.path_template_source == None:
+            self.path_template_source = os.getcwd()+ '/'
+            
+        if self.path_name_output == None:
+            self.path_name_output = os.getcwd()+ '/'
+            
+        
+        self.template = Template()
+        if self.file_template:
+            self.template.read(self.path_template_source + self.file_template)
+        else:
+            if self.html_template:
+                self.template.set_content_html(self.html_template)
+        
+        model_bloc = self.template.get_repeted_bloc() 
+        count_bloc = cur_report.get_max_bloc_section('Details')
+        self.template.copie_bloc({"class":"body_table"},count_bloc,model_bloc)
+         
+        nombre_page = len(cur_report.pages.keys())
+        
+        self.template.create_model_page()
+        
+        # remplacement de la copie de page     
+        page_index = 0
+        for page_key,page_value in cur_report.pages.iteritems():
+            my_page = self.template.create_page_copy()
+            #------------------section Report header ----------------------
+            self.page_merge_section(self.template,my_page,page_value,cur_report.images,'Report_header')
+            #------------------section Page Header ---------------------- 
+            self.page_merge_section(self.template,my_page,page_value,cur_report.images,'Page_header')
+            #------------------section Details --------------------------
+            self.page_merge_section(self.template,my_page,page_value,cur_report.images,'Details')
+            #------------------section Page footer ----------------------
+            self.page_merge_section(self.template,my_page,page_value,cur_report.images,'Page_footer')
+            #------------------section Report footer ----------------------
+            self.page_merge_section(self.template,my_page,page_value,cur_report.images,'Report_footer')
+            # add page 
+            self.template.add_page(my_page)
+            page_index += 1
+        
+        self.template.destroy_model_page()
+        
+        
+    def page_merge_section(self,temp,my_page,page_value,images,report_section):
+        if page_value.has_key(report_section):
+            for key_bloc,val_bloc in page_value[report_section].iteritems():
+                temp.page_set_section_values(my_page,report_section,images,key_bloc,val_bloc) 
+    
+    def read_json_file(self,path):
+        data_file =""
+        with open(path,'r+') as json_file:
+            data_file = data_file + json_file.read()
+            
+        json_data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data_file)
+        return json_data
+    
+    def get_template(self):
+        return self.template
+
+    def save_report(self):
+        self.template.copie(self.path_name_output + self.file_template)
+  
 
 class json_to_report():
     
@@ -267,9 +338,8 @@ class json_to_report():
             self.data_merge_section(self.template,page_index,page_value,cur_report.images,'Report_footer')
             #---------------------------------------------------------
             page_index += 1
-         
         
-    
+         
     def data_merge_section(self,temp,page_index,page_value,images,report_section):
         if page_value.has_key(report_section):
             for key_bloc,val_bloc in page_value[report_section].iteritems():
@@ -418,7 +488,7 @@ class report_total():
             return self.get_value(self.deferred_fileds[field_id].name)
         else:
             return ''
-            
+        
          
 class current_report():
     
@@ -506,7 +576,9 @@ class current_report():
                                  }
         
         self.max_bloc_details = self.get_max_bloc_section('Details')
-
+        
+        self.globals = self.get_source_data_fields('Global')
+        self.glo_fields = {}
         self.totals = self.get_source_data_fields('Total')       
         self.cur_total = report_total(self.totals,
                                       self.section_names['Details'],
@@ -546,15 +618,23 @@ class current_report():
             str_query = str_query.replace(str_search, str_value)
         return str_query
     
-    def string_to_value(self,value):
+    def string_to_value(self,value,type = 'float'):
         n_value = 0
         if value:
+            if isinstance(value,str):
+                value = ''.join(value.split()).replace(',',".").replace('%','')
             try: 
-               n_value = float(value)
-    
+               if type == 'float':
+                   n_value = float(value)
+               elif type in ['int','integer']:
+                   n_value = int(value)
+               else:
+                   n_value = double(value)
             except ValueError:
                n_value = 0
+
         return n_value
+
     
     def format_value(self,field,value):
         if not value:
@@ -637,6 +717,8 @@ class current_report():
         all_lists    = []
         key_name = ""
         cur_row = 0 
+        
+        self.set_global_list(results)
          
         if(self.field_key_group) and len(results)>0:
             key_name = self.field_key_group[0]
@@ -656,7 +738,7 @@ class current_report():
                     lst_records=[]
                     lst_records.append(record)
                     key_value_change = record[key_name]
-             
+                    
             if len(lst_records)>0:
                 all_lists.append(lst_records)
         else:
@@ -664,16 +746,32 @@ class current_report():
                 all_lists.append(results)
                 if self.max_bloc_details>0:
                     self.total_page = int(len(all_lists) /self.max_bloc_details) 
-
+        
         return all_lists
+    
+    def set_global_list(self,results):
+        if len(self.globals)>0:
+            for glofield in self.globals:
+                if glofield.total_field_id and glofield.related_field_id:
+                    self.glo_fields[glofield.name] = self.set_glo_field(results,
+                                                                        glofield.total_field_id.name,
+                                                                        glofield.related_field_id.name)
+    
+    def set_glo_field(self,results,cell_key,ref_key):
+        recap = {}
+        for record in results:
+            if record.has_key(cell_key) and record.has_key(ref_key): 
+                key_value = record[cell_key] 
+                if not recap.has_key(key_value):
+                    recap[key_value] = 0 
+                recap[key_value] =  recap[key_value] + self.string_to_value(record[ref_key],'float')
+        return recap 
 
     '''
      print a  list of records 
     '''
     def print_record_list(self,results):
-        print 'Sorting report'
         all_lists = self.sort_record_list(results)
-        print 'prepare report'
         for list_record in all_lists:
             if self.report.reset_total_by_group:
                 self.cur_total.reset_totals()
@@ -682,7 +780,7 @@ class current_report():
                 self.print_line(record)
                 
             self.print_end(record)
-            
+           
     '''
         print one record
     '''        
@@ -874,7 +972,7 @@ class current_report():
     def formula_execute(self,field,value): 
        
         if field.formula:
-            self.cur_total.cur_value = self.string_to_value(value) 
+            self.cur_total.cur_value = self.string_to_value(value,'float') 
             
             try:
                 exec(field.formula, self.context)
@@ -893,7 +991,7 @@ class current_report():
     '''
         the field value is extracted from the context
     '''
-    def value_from_context(self,field): 
+    def value_from_context(self,field,record): 
         value = ''
         if field:
             if field.expression:
@@ -901,8 +999,16 @@ class current_report():
                     value = eval(field.expression, self.context)
                 except SyntaxError:
                     value = ''
-            elif self.glo_context.has_key(field.name):
-                value = self.glo_context[field.name]
+            elif field.source_data == 'Global' and self.glo_fields.has_key(field.name):
+                dic_value = self.glo_fields.get(field.name,{})
+                if field.total_field_id:
+                    key_name = field.total_field_id.name
+                    key_value = self.load_field_value(field.total_field_id, record)
+                    if dic_value.has_key(key_value):
+                        value = dic_value[key_value]
+                    
+            else:
+                value = self.glo_context.get(field.name,'')
         return value 
     
     '''
@@ -934,8 +1040,8 @@ class current_report():
                 
         if field.source_data == 'Form':
             return self.value_from_form(field)
-        elif field.source_data == 'Context':
-            return self.value_from_context(field)
+        elif field.source_data in ['Context','Global']:
+            return self.value_from_context(field,record)
         elif field.source_data == 'Total':
             return self.value_from_total(field)
             
@@ -944,7 +1050,7 @@ class current_report():
     def format_field_value(self,field,value):
         if field.field_format_id and field.field_format_id.format:
             if field.field_type in ('Number','Double','Integer','Currency'):
-                amount = self.string_to_value(value)
+                amount = self.string_to_value(value,'float')
                 str_format = str(field.field_format_id.format)
                 return str_format.format(amount)
             #('String', 'List','Dict','Date','Time','Image','Static Image')
@@ -975,7 +1081,6 @@ class current_report():
         
         elif field.source_data == 'Folios':
             return self.total_folio
-        
         
         elif field.source_data == 'Function':
             return 'my_function'
