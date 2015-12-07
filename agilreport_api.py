@@ -58,14 +58,6 @@ class oerp_report():
         attributes['pool'] = self.pool
         return current_report(attributes)
     
-    def create_json(self,cur_report):
-      # Write JSON file 
-        my_json_report = ao_json(cur_report)
-        name_file = my_json_report.to_file(cur_report)
-        print 'Json write file'
-        cur_report.id_file = my_json_report.save_file(cur_report)
-        print 'Json saved in DB'
-        cur_report.json_out = json_to_report(cur_report)
     
     def set_preview(self,cur_report):
         cur_report.output_file = cur_report.env_vars['json_file_name']
@@ -126,9 +118,8 @@ class oerp_report():
                 cur_report.print_record_list(result)
             else:
                 cur_report.print_record_list(result)
-            #print 'preparing JSON report'
-            #self.create_json(cur_report)
-            cur_report.json_out = json_fast_to_report(cur_report)
+
+            cur_report.json_out = json_to_report(cur_report)
             #print 'previewing report'
             cur_report.container_pages = self.set_preview(cur_report)
             return self.to_preview_bin(cur_report)
@@ -150,7 +141,7 @@ class ao_report_json_files(object):
         self.name = dic_json['name']
         self.report_id = dic_json['report_id']
 
-class ao_json(object):
+class ao_json_xxxxxx(object):
     
     def __init__(self,cur_report):
         self.cur_report  = cur_report
@@ -218,7 +209,7 @@ class ao_json(object):
             return True
     
 #   
-class json_fast_to_report():
+class json_to_report():
     
     
     def __init__(self,cur_report):
@@ -244,6 +235,8 @@ class json_fast_to_report():
         model_bloc = self.template.get_repeted_bloc() 
         count_bloc = cur_report.get_max_bloc_section('Details')
         self.template.copie_bloc({"class":"body_table"},count_bloc,model_bloc)
+         
+        print cur_report.pages
          
         nombre_page = len(cur_report.pages.keys())
         
@@ -289,75 +282,6 @@ class json_fast_to_report():
     def save_report(self):
         self.template.copie(self.path_name_output + self.file_template)
   
-
-class json_to_report():
-    
-    
-    def __init__(self,cur_report):
-        self.html_template        = cur_report.env_vars.get('template_html', None) 
-        self.path_template_source = cur_report.env_vars.get('path_template_source', None) 
-        self.file_template        = cur_report.env_vars.get('template_file_name', None) 
-        self.path_name_output     = cur_report.env_vars.get('path_name_output', None) 
-       
-        if self.path_template_source == None:
-            self.path_template_source = os.getcwd()+ '/'
-            
-        if self.path_name_output == None:
-            self.path_name_output = os.getcwd()+ '/'
-            
-        
-        self.template = Template()
-        if self.file_template:
-            self.template.read(self.path_template_source + self.file_template)
-        else:
-            if self.html_template:
-                self.template.set_content_html(self.html_template)
-        
-        model_bloc = self.template.get_repeted_bloc() 
-        count_bloc = cur_report.get_max_bloc_section('Details')
-        self.template.copie_bloc({"class":"body_table"},count_bloc,model_bloc)
-        
-        
-        #self.data = self.read_json_file(cur_report.path_json_file)
-        #pages     = self.data["Report"]["Pages"]
-        #images    = self.data["Report"]["Images"]
-        
-        nombre_page = len(cur_report.pages.keys())
-        self.template.duplicate_page(nombre_page)
-        page_index = 0
-        for page_key,page_value in cur_report.pages.iteritems():
-            #------------------section Report header ----------------------
-            self.data_merge_section(self.template,page_index,page_value,cur_report.images,'Report_header')
-            #------------------section Page Header ---------------------- 
-            self.data_merge_section(self.template,page_index,page_value,cur_report.images,'Page_header')
-            #------------------section Details --------------------------
-            self.data_merge_section(self.template,page_index,page_value,cur_report.images,'Details')
-            #------------------section Page footer ----------------------
-            self.data_merge_section(self.template,page_index,page_value,cur_report.images,'Page_footer')
-            #------------------section Report footer ----------------------
-            self.data_merge_section(self.template,page_index,page_value,cur_report.images,'Report_footer')
-            #---------------------------------------------------------
-            page_index += 1
-        
-         
-    def data_merge_section(self,temp,page_index,page_value,images,report_section):
-        if page_value.has_key(report_section):
-            for key_bloc,val_bloc in page_value[report_section].iteritems():
-                temp.set_values_section(page_index,report_section,images,key_bloc,val_bloc) 
-            
-    def read_json_file(self,path):
-        data_file =""
-        with open(path,'r+') as json_file:
-            data_file = data_file + json_file.read()
-            
-        json_data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data_file)
-        return json_data
-    
-    def get_template(self):
-        return self.template
-
-    def save_report(self):
-        self.template.copie(self.path_name_output + self.file_template)
 
     
 class ao_report(object):
@@ -544,6 +468,7 @@ class current_report():
         self.env_vars = report_path_names(self.report,folder_template)
 
         self.pages = collections.OrderedDict()
+        self.css_styles = collections.OrderedDict()
         self.images = collections.OrderedDict()
         self.page_number = 0
         self.page_folio  = 0 
@@ -835,6 +760,35 @@ class current_report():
         self.evaluate_fields('Report_footer', record)
     
     '''
+        get css_Style of given page number
+    '''
+    def get_css_style_page(self, page_number):
+        key_page = 'Page' + str(page_number)
+        if not (self.css_styles.has_key(key_page)):
+            self.css_styles[key_page] = collections.OrderedDict()
+        return self.css_styles[key_page]
+
+    '''
+        get css_Style section of given page number and section
+    '''
+    def get_css_style_page_section(self, page_number, section_name):   
+        mypage_style = self.get_css_style_page(page_number) 
+        if not (mypage_style.has_key(section_name)):
+            mypage_style[section_name] = collections.OrderedDict()
+        return mypage_style[section_name]
+    
+    '''
+        get section bloc of given page number,section, and bloc number
+    '''
+    def get_css_style_page_section_bloc(self, page_number, section_name, bloc_number):
+        key_bloc = 'Bloc' + str(bloc_number)   
+        mysection_style = self.get_css_style_page_section(page_number, section_name) 
+        if not (mysection_style.has_key(key_bloc)):
+            mysection_style[key_bloc] = collections.OrderedDict()
+        return mysection_style[key_bloc]
+    
+        
+    '''
         get page of given page number
     '''
     def get_page(self, page_number):
@@ -842,6 +796,7 @@ class current_report():
         if not (self.pages.has_key(key_page)):
             self.pages[key_page] = collections.OrderedDict()
         return self.pages[key_page]
+
 
     '''
         get section of given page number and section
@@ -896,28 +851,6 @@ class current_report():
         
     
     '''
-        not used yet 
-        fill all data in one pass, to be used by formulary 
-    '''
-    def fill_all_json_data(self, page,json_data):
-        json_report = json_data['Report']
-        json_pages  = json_report['Pages']
-        my_temple   = Template(page)
-        html_report = my_temple.create_new_report()
-        for key_page, my_page in json_pages.items():
-            page_number = int(key_page.replace('Page', ''))
-            my_temple.fill_create_new_page(page_number) 
-            for key_section, my_section in my_page.items():
-                
-                for key_bloc, my_bloc in my_section.items():
-                    bloc_number = int(key_page.replace('Bloc', ''))
-                    for field, value in my_bloc.items():
-                        self.fill_field_value(key_section, page_number, bloc_number, field, value)
-    
-    def fill_field_value(self, key_section, page_number, bloc_number, field, value):
-        return ' '
-    
-    '''
     '''    
     def key_group(self):
         self.field_key_group = []
@@ -945,8 +878,8 @@ class current_report():
         
         section_list = self.get_section_fields(section_name)
         mypage_section_bloc = self.get_page_section_bloc(self.page_number, 
-                                                             section_name, 
-                                                             self.bloc_number)
+                                                         section_name, 
+                                                         self.bloc_number)
             
         #mysection_page = self.get_page_section(self.page_number, section_name)
         for key_name, field in section_list.items():
