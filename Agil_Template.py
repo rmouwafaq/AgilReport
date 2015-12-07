@@ -350,3 +350,12 @@ class Template(object):
             return True
         else:
             return False
+    def add_background(self,background_image):
+        all_page = self.content_html.find_all(attrs={"class":"Page"})
+        for page in all_page:
+            if(page["class"]):
+                page["class"]=page["class"][0]+" background_page"
+                page["style"]="background-image: url('"+background_image+"');"
+            else:
+                page["class"]="background_page"
+                page["style"]="background-image: url('"+background_image+"');"
