@@ -178,7 +178,7 @@ class Template(object):
         return element.string
     
     def set_value_element(self,element,value):
-        element.string = value
+        element.string = str(value)
     
     def set_value_id(self,id_name,value,type_elem):
         if self.report_template:
