@@ -236,7 +236,6 @@ class json_to_report():
         count_bloc = cur_report.get_max_bloc_section('Details')
         self.template.copie_bloc({"class":"body_table"},count_bloc,model_bloc)
          
-        print cur_report.pages
          
         nombre_page = len(cur_report.pages.keys())
         
@@ -638,42 +637,47 @@ class current_report():
     ''' 
     def sort_record_list(self,results):
        
-        lst_records = []
         all_lists    = []
         key_name = ""
-        cur_row = 0 
-        
+        key_list = {}
         self.set_global_list(results)
          
         if(self.field_key_group) and len(results)>0:
             key_name = self.field_key_group[0]
-            first_record = results[0]
-            key_value_change = first_record[key_name]
             for record in results:
-                if record[key_name]==key_value_change:
-                    lst_records.append(record)
-                    cur_row +=1 
-                    if cur_row> self.max_bloc_details:
-                        self.total_page  +=1
+                if key_list.has_key(record[key_name]):
+                   lst_records = key_list[record[key_name]]  
                 else:
-                    self.total_folio +=1
-                    self.total_page  +=1
-                    cur_row = 1
-                    all_lists.append(lst_records)
-                    lst_records=[]
-                    lst_records.append(record)
-                    key_value_change = record[key_name]
-                    
-            if len(lst_records)>0:
-                all_lists.append(lst_records)
+                   lst_records=[] 
+                   all_lists.append(lst_records)
+              
+                lst_records.append(record)
+                key_list[record[key_name]] = lst_records 
+                
+            self.calculate_pages(all_lists)
         else:
             if len(results):
                 all_lists.append(results)
                 if self.max_bloc_details>0:
                     self.total_page = int(len(all_lists) /self.max_bloc_details) 
-        
         return all_lists
     
+    def calculate_pages(self,all_lists):
+        cur_row  = 0
+        self.total_page = 0
+        self.total_folio = 0
+      
+        for list_record in all_lists:
+            self.total_folio +=1
+            self.total_page  +=1
+            for record in list_record:
+               cur_row +=1 
+               if cur_row> self.max_bloc_details:
+                   self.total_page +=1
+                   cur_row = 1
+                   
+               
+        
     def set_global_list(self,results):
         if len(self.globals)>0:
             for glofield in self.globals:
