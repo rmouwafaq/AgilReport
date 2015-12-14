@@ -36,7 +36,10 @@ class Container(object):
         self.sequence = self.sequence + 1
         self.col_docs[self.sequence] = new_doc
     
-    def add_content(self,content):
+    def add_content(self,content,bookmark):
+        page_container = content.find_all(attrs={"class":"Page_container"})[0]
+        page_container["id"]=bookmark
+        
         report = content.find(id="Report")
         if report:
             doc_type = report.get('format','Portrait')
