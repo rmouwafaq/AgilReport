@@ -86,8 +86,12 @@ class Template(object):
             def_report['format'] = report['format'] or "Landscape"
             def_report['name']   = report['ao-name'] or False
             def_report['title']  = report['ao-title'] or False
+            if def_report['format'] in ['portrait','landscape']:
+                def_report['format'] = def_report['format'].title()
             return def_report
         except:
+            if def_report['format'] in ['portrait','landscape']:
+                def_report['format'] = def_report['format'].title()
             return def_report
     '''
         get the html section code
