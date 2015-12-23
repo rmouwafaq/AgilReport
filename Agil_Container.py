@@ -38,7 +38,7 @@ class Container(object):
     
     def add_content(self,content,bookmark):
         page_container = content.find_all(attrs={"class":"Page_container"})[0]
-        page_container["id"]=bookmark
+        page_container["id"]=str(bookmark).replace(" ","_")
         
         report = content.find(id="Report")
         if report:
