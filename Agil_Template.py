@@ -86,8 +86,12 @@ class Template(object):
             def_report['format'] = report['format'] or "Landscape"
             def_report['name']   = report['ao-name'] or False
             def_report['title']  = report['ao-title'] or False
+            if def_report['format'] in ['portrait','landscape']:
+                def_report['format'] = def_report['format'].title()
             return def_report
         except:
+            if def_report['format'] in ['portrait','landscape']:
+                def_report['format'] = def_report['format'].title()
             return def_report
     '''
         get the html section code
@@ -111,12 +115,19 @@ class Template(object):
             field_name=element['id']
             source_data = "Model"
             type_data   = "String"
+            type_formula   = ""
+            
             if(element.has_key('ao-data-source')):
                 source_data=element['ao-data-source']
             if(element.has_key('ao-type')):
                 type_data=element['ao-type']
             
-            field[field_name]={'source_data':source_data,'type':type_data}
+            if(element.has_key('ao-formula')):
+                type_formula=element['ao-formula']
+            
+            field[field_name]={'source_data':source_data,
+                               'type':type_data,
+                               'formula':type_formula}
         return field
         
     def get_class_section(self,section_name,class_name):
