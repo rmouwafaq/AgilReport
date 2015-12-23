@@ -256,11 +256,11 @@ class json_to_report():
             #------------------section Report footer ----------------------
             self.page_merge_section(self.template,my_page,page_value,cur_report.images,'Report_footer')
             # add page 
+            self.template.transfert_data(my_page)
             self.template.add_page(my_page)
             page_index += 1
         
         self.template.destroy_model_page()
-        
         
     def page_merge_section(self,temp,my_page,page_value,images,report_section):
         if page_value.has_key(report_section):

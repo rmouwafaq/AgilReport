@@ -370,3 +370,14 @@ class Template(object):
             else:
                 page["class"]="background_page"
                 page["style"]="background-image: url('"+background_image+"');"
+    def transfert_data(self,current_page):
+        page_footer=current_page.find(attrs={"class":"Page_footer"})
+        if(page_footer.find(attrs={"ao-transfer":"true"})):
+            elem=page_footer.find(attrs={"ao-transfer":"true"})
+            dest_transfer=elem["ao-transfer-to"]
+            dest_element=current_page.find(attrs={"id":dest_transfer})
+            if(dest_element):
+                copy_elem = copy.deepcopy(elem)
+    #             dest_element.append(copy_elem)
+                dest_element.replaceWith(copy_elem)
+                elem.extract()
