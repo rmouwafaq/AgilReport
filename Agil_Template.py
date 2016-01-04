@@ -198,7 +198,7 @@ class Template(object):
             element.string=value
         
     def get_repeted_bloc(self):
-        return copy.deepcopy(self.report_template.find(attrs={"type":"repeted_bloc"}))
+        return copy.deepcopy(self.report_template.find_all(attrs={"type":"repeted_bloc"}))
     
      
     def get_max_bloc(self,bloc_repeted):
@@ -270,17 +270,18 @@ class Template(object):
             if(pag[page_index]):
                 pag[page_index].string=str(page_index+1)
                 
-    def copie_bloc(self,find_elet,count_bloc,model_bloc):
+    def copie_bloc(self,find_elet,count_bloc,model_blocs):
         
         # find_elet = {"class":"body_table"}
         list_elets = self.content_html.find_all(attrs=find_elet)
         if list_elets:
             list_elets[0].clear()
             for i in xrange(0,count_bloc,1):
-                mb = copy.deepcopy(model_bloc)
-                mb['class']='Bloc'+str(i+1)
-                list_elets[0].append(mb)
-                del mb
+                for model_bloc in model_blocs:
+                    mb = copy.deepcopy(model_bloc)
+                    mb['class']='Bloc'+str(i+1)
+                    list_elets[0].append(mb)
+                    del mb
             
                 
     def set_val_bloc_repeted(self,page_index,values_id):
