@@ -334,8 +334,10 @@ class Template(object):
             
             section = self.get_section(section_name)
             if(section.find(attrs={'class':'Bloc1'})):
-                bloc=section.find(attrs={'class':'Bloc1'})
-                template_def[section_name]['fields'] = dict(self.get_ids_bloc(bloc))
+                blocs=section.find_all(attrs={'class':'Bloc1'})
+                template_def[section_name]['fields']={}
+                for bloc in blocs:
+                    template_def[section_name]['fields'].update( dict(self.get_ids_bloc(bloc)))
         return template_def
     
     def set_val_attr(self,attribute,attribute_value,new_value):
