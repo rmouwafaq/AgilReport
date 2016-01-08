@@ -103,9 +103,10 @@ class Template(object):
         return the maxbloc section repeted bloc number 
     '''
     def get_max_bloc_section(self,section_name):
-        section_tag=self.get_section(section_name)
-        if(section_tag.has_key('ao-max-bloc')):
-            return section_tag['ao-max-bloc']
+        section_tag = self.get_section(section_name)
+        if section_tag:
+            if (section_tag.has_key('ao-max-bloc')):
+                return section_tag['ao-max-bloc']
         return "1"        
     
     def get_ids_bloc(self,bloc):
