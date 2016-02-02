@@ -117,6 +117,7 @@ class Template(object):
             source_data = "Model"
             type_data   = "String"
             type_formula   = ""
+            ao_group = False
             
             if(element.has_key('ao-data-source')):
                 source_data=element['ao-data-source']
@@ -125,10 +126,16 @@ class Template(object):
             
             if(element.has_key('ao-formula')):
                 type_formula=element['ao-formula']
-            
+           
+            if(element.has_key('ao-group')):
+                if int(element['ao-group']) > 0:
+                    ao_group = True
+           
             field[field_name]={'source_data':source_data,
                                'type':type_data,
-                               'formula':type_formula}
+                               'formula':type_formula,
+                               'group':ao_group,
+                               }
         return field
         
     def get_class_section(self,section_name,class_name):
@@ -374,6 +381,7 @@ class Template(object):
             else:
                 page["class"]="background_page"
                 page["style"]="background-image: url('"+background_image+"');"
+    
     def transfert_data(self,current_page):
         page_footer=current_page.find(attrs={"class":"Page_footer"})
         if(page_footer.find(attrs={"ao-transfer":"true"})):
