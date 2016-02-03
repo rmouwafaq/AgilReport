@@ -118,6 +118,7 @@ class Template(object):
             type_data   = "String"
             type_formula   = ""
             ao_group = False
+            ao_format = ""
             
             if(element.has_key('ao-data-source')):
                 source_data=element['ao-data-source']
@@ -130,11 +131,15 @@ class Template(object):
             if(element.has_key('ao-group')):
                 if int(element['ao-group']) > 0:
                     ao_group = True
-           
+
+            if (element['ao-format']):
+                    ao_format = element['ao-format']
+
             field[field_name]={'source_data':source_data,
                                'type':type_data,
                                'formula':type_formula,
                                'group':ao_group,
+                               'format':ao_format,
                                }
         return field
         
