@@ -119,6 +119,7 @@ class Template(object):
             type_formula   = ""
             ao_group = False
             ao_format = ""
+            reset_after_print = False
             
             if(element.has_key('ao-data-source')):
                 source_data=element['ao-data-source']
@@ -132,17 +133,34 @@ class Template(object):
                 if int(element['ao-group']) > 0:
                     ao_group = True
 
-            if (element['ao-format']):
+            if (element.has_key('ao-format')):
                     ao_format = element['ao-format']
 
-            field[field_name]={'source_data':source_data,
-                               'type':type_data,
-                               'formula':type_formula,
-                               'group':ao_group,
-                               'format':ao_format,
-                               }
+            if (element('ao-reset_after_print')):
+                    if int(element['ao-reset_after_print'])>0:
+                        reset_after_print = True
+
+            prop_field ={'source_data':source_data,
+                         'type':type_data,
+                         'formula':type_formula,
+                         'group':ao_group,
+                         'format':ao_format,
+                         'reset_after_print':reset_after_print,
+                         }
+            field[field_name] = self.set_field_format(prop_field)
         return field
-        
+  
+    def set_field_format(self,prop_field):
+        ao_format = prop_field['format']
+        if prop_field['type'] in ['Double','Currency']:
+           ao_format = 'decimal_separator'
+        if prop_field['type'] in ['Integer','Number']:
+           ao_format = 'no_decimal'
+           
+        prop_field['format'] = ao_format
+        return prop_field
+      
+            
     def get_class_section(self,section_name,class_name):
         section_tag = self.get_section(section_name)
         return section_tag.find_all(attrs={"class":class_name})

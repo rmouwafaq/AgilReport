@@ -358,9 +358,10 @@ class ao_report_json_files(object):
 
 
 class report_total():
-    def __init__(self,totals,section_names,deferred=False):
+    def __init__(self,totals,lst_deferreds,section_names,deferred=False):
         self.cur_value = 0
         self.totals = totals
+        self.lst_deferreds = lst_deferreds
         self.deferred = deferred
     
         self.deferred_fileds = {}    
@@ -372,6 +373,12 @@ class report_total():
                     if total.total_field_id:
                         if total.total_field_id.id == field.id:
                             self.deferred_fileds[field.id] = total
+    
+    def evaluate_deferred(self):
+        for field in self.lst_deferreds:
+            if field.total_field_id:
+                cur_value = self.get_value(field.total_field_id.name)
+                self.set(field.name, cur_value) 
                             
     def reset_totals(self):
         for total in self.totals:
@@ -384,6 +391,12 @@ class report_total():
         cur_total += cur_val
         self.set_total(total_name, cur_total)
         return cur_total
+    
+    def set(self,total_name, cur_val = None):
+        if cur_val == None: 
+            cur_val = self.cur_value  
+        self.set_total(total_name, cur_val)
+        return cur_val
     
     def count(self,total_name,cur_val = 1):
         return self.sum(total_name, cur_val) 
@@ -503,8 +516,11 @@ class current_report():
         
         self.globals = self.get_source_data_fields('Global')
         self.glo_fields = {}
-        self.totals = self.get_source_data_fields('Total')       
+        self.totals = self.get_source_data_fields('Total') 
+        self.lst_deferreds = self.get_source_data_fields('Deferred')
+              
         self.cur_total = report_total(self.totals,
+                                      self.lst_deferreds,  
                                       self.section_names['Details'],
                                       self.report.deferred_total)     
         self.context['total'] = self.cur_total
@@ -604,11 +620,13 @@ class current_report():
             return field
     
     '''
-    
+       get current field value
     '''
-    def field(self, field_id, section_name='Details'):
+    def get_field_value(self, field_id, section_name='Details'):
+        value = ''
         field = self.field_object(field_id, section_name)
-        value = self.get_field(self.page_number, field.section, self.bloc_number, field.name)
+        if field:
+            value = self.get_field(self.page_number, field.section, self.bloc_number, field.name)
         return value
     
     '''
@@ -620,6 +638,7 @@ class current_report():
             if field.section == section_name:
                 section_list[field.name] = field
         return section_list
+  
     
     '''
        returns a list of matching fields, a given type of source_data  
@@ -704,6 +723,7 @@ class current_report():
         for list_record in all_lists:
             if self.report.reset_total_by_group:
                 self.cur_total.reset_totals()
+                
             self.page_folio  = 0     
             for record in list_record:
                 self.print_line(record)
@@ -751,9 +771,11 @@ class current_report():
         self.bloc_number = 1
         self.evaluate_fields('Report_header', record)
         self.evaluate_fields('Page_header', record)
-        if deferred and self.cur_total.deferred:
-            self.evaluate_fields('Details',record,True,True)
-            self.bloc_number += 1
+        if deferred: 
+            self.cur_total.evaluate_deferred()
+            if self.cur_total.deferred:
+                self.evaluate_fields('Details',record,True,True)
+                self.bloc_number += 1
     '''
         ended page 
         print Page Footer and Report Footer
@@ -962,7 +984,6 @@ class current_report():
         the total method reset are evaluated 
     '''
     def value_from_total(self, field):
-        
         value = self.cur_total.get_value(field.name)
         self.cur_total.reset_after_print(field)
         return value
@@ -979,9 +1000,8 @@ class current_report():
             return self.value_from_form(field)
         elif field.source_data in ['Context','Global']:
             return self.value_from_context(field,record)
-        elif field.source_data == 'Total':
+        elif field.source_data in ['Total','Deferred']:
             return self.value_from_total(field)
-            
         return value
     
     def format_field_value(self,field,value):
@@ -993,7 +1013,6 @@ class current_report():
             #('String', 'List','Dict','Date','Time','Image','Static Image')
         return value
             
-        
     '''
        the field value is extracted from stored static images   
     '''
