@@ -121,24 +121,27 @@ class Template(object):
             ao_format = ""
             reset_after_print = False
             
-            if(element.has_key('ao-data-source')):
+            if element.has_key('ao-data-source'):
                 source_data=element['ao-data-source']
-            if(element.has_key('ao-type')):
+            
+            if element.has_key('ao-type'):
                 type_data=element['ao-type']
             
-            if(element.has_key('ao-formula')):
-                type_formula=element['ao-formula']
+            if element.has_key('ao-formula'):
+                type_formula = element['ao-formula']
+                type_formula = type_formula.replace(':', '\n')
+                
            
-            if(element.has_key('ao-group')):
+            if element.has_key('ao-group'):
                 if int(element['ao-group']) > 0:
                     ao_group = True
 
-            if (element.has_key('ao-format')):
-                    ao_format = element['ao-format']
+            if element.has_key('ao-format'):
+                ao_format = element['ao-format']
 
-            if (element('ao-reset_after_print')):
-                    if int(element['ao-reset_after_print'])>0:
-                        reset_after_print = True
+            if element.has_key('ao-reset_after_print'):
+                if int(element['ao-reset_after_print'])>0:
+                    reset_after_print = True
 
             prop_field ={'source_data':source_data,
                          'type':type_data,

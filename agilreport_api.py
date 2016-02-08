@@ -925,18 +925,19 @@ class current_report():
 
             mypage_section_bloc[field.name] = value
             
-    '''
+    '''    
         the field formula execution
     '''
     def formula_execute(self,field,value): 
        
         if field.formula:
             self.cur_total.cur_value = self.string_to_value(value,'float') 
-            
-            try:
-                exec(field.formula, self.context)
-            except SyntaxError:
-                print 'Formula Error ', field.formula
+            formula = field.formula.split()
+            for form_line in formula: 
+                try:
+                    exec(form_line, self.context)
+                except SyntaxError:
+                    print 'Formula Error ', field.formula
 
     '''
         the field value is extracted from the current record
