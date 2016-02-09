@@ -1030,7 +1030,7 @@ class current_report():
         if field.source_data == 'Page':
             return self.page_number
        
-        elif field.source_data == 'Page':
+        elif field.source_data == 'Pages':
             return self.total_page
        
         elif field.source_data == 'Folio':
