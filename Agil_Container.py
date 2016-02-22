@@ -43,7 +43,6 @@ class Container(object):
         report = content.find(id="Report")
         if report:
             doc_type = report.get('format','Portrait')
-            print 'add_content ---->',doc_type
         new_doc = Container_doc(None,
                                 copy.copy(content),
                                 self.sequence,
