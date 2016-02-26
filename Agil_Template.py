@@ -120,7 +120,8 @@ class Template(object):
             ao_group = False
             ao_format = ""
             reset_after_print = False
-            
+            related_total = ''
+
             if element.has_key('ao-data-source'):
                 source_data=element['ao-data-source']
             
@@ -142,12 +143,16 @@ class Template(object):
             if element.has_key('ao-reset_after_print'):
                 if int(element['ao-reset_after_print'])>0:
                     reset_after_print = True
+            
+            if element.has_key('ao-related_total'):
+                related_total = element['ao-related_total']
 
             prop_field ={'source_data':source_data,
                          'type':type_data,
                          'formula':type_formula,
                          'group':ao_group,
                          'format':ao_format,
+                         'related_total':related_total,
                          'reset_after_print':reset_after_print,
                          }
             field[field_name] = self.set_field_format(prop_field)

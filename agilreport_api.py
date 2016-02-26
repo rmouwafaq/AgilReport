@@ -567,7 +567,7 @@ class current_report():
                if type == 'float':
                    n_value = float(value)
                elif type in ['int','integer']:
-                   n_value = int(value)
+                   n_value = int(float(value))
                else:
                    n_value = double(value)
             except ValueError:
@@ -759,7 +759,7 @@ class current_report():
                 self.evaluate_fields('Details',False,False)
                 self.bloc_number += 1 
                 
-            self.end_page(record)
+        self.end_page(record)
     
     '''
         start a new page
@@ -1008,7 +1008,11 @@ class current_report():
     def format_field_value(self,field,value):
         if field.field_format_id and field.field_format_id.format:
             if field.field_type in ('Number','Double','Integer','Currency'):
-                amount = self.string_to_value(value,'float')
+                if field.field_type in ('Integer'): 
+                    amount = self.string_to_value(value,'int')
+                else:
+                    amount = self.string_to_value(value,'float')
+                
                 str_format = str(field.field_format_id.format)
                 return str_format.format(amount)
             #('String', 'List','Dict','Date','Time','Image','Static Image')
