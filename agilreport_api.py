@@ -678,12 +678,17 @@ class current_report():
             if len(results):
                 all_lists.append(results)
                 if self.max_bloc_details>0:
-                    self.total_page = int(len(all_lists) /self.max_bloc_details) 
+                    print 'len all list ', len(results)
+                    print 'self.max_bloc_details ',self.max_bloc_details
+                    self.total_page = int(len(results) /self.max_bloc_details)
+                    if (len(results) % self.max_bloc_details) >0:
+                         self.total_page += 1
+                    print 'total page ',self.total_page 
         return all_lists
     
     def calculate_pages(self,all_lists):
         cur_row  = 0
-        self.total_page = 0
+        self.total_page  = 0
         self.total_folio = 0
       
         for list_record in all_lists:
