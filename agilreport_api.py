@@ -35,9 +35,10 @@ def report_path_names(report,folder_template=None):
     env_vars['template_file_name'] = end_file(report.template_file_name,'.html')
     env_vars['template_html'] = folder_template
     env_vars['xml_file_name'] = end_file(report.xml_file_name,'.xml')  
-    
-    env_vars['path_json_file'] = CD_STATIC_REPORTS +env_vars['module_name']+"/" + env_vars['report_name']+"/JSON/"   
+    print 'env_vars[module_name] :', env_vars['module_name']
+    #env_vars['path_json_file'] = CD_STATIC_REPORTS +env_vars['module_name']+"/" + env_vars['report_name']+"/JSON/"   
     env_vars['path_template_source'] =  module.get_module_path(env_vars['module_name'])  + "/" + folder_template + "/"
+    
     env_vars['path_name_output'] = CD_STATIC_REPORTS + env_vars['module_name']+"/"+env_vars['report_name']+"/HTML/"
     env_vars['path_xml_report'] = CD_STATIC_REPORTS + env_vars['module_name']+"/"+env_vars['report_name']+"/report_def/"
     return env_vars
@@ -126,13 +127,16 @@ class oerp_report():
     
     def set_report(self,cur_report,recordlist):
         out_bin = self.prepare_report(cur_report,recordlist)
+        print 'pages ', cur_report.pages
         if  out_bin:
+            report_request = self.pool.get("report.def.request")
             return report_request.set_action_request_report(cur_report.cursor,
                                                  cur_report.user.id, 
                                                  cur_report.report.id, 
                                                  out_bin,
-                                                 context)
-
+                                                 cur_report.report.name,
+                                                 context=None)
+          
 
 
 class ao_report_json_files(object):
@@ -141,72 +145,72 @@ class ao_report_json_files(object):
         self.name = dic_json['name']
         self.report_id = dic_json['report_id']
 
-class ao_json_xxxxxx(object):
-    
-    def __init__(self,cur_report):
-        self.cur_report  = cur_report
-        self.report_name = cur_report.report.name
-        self.json_name   = self.get_file_name(cur_report)
-        
-    def save_file(self,cur_report):
-        json_pool = cur_report.pool.get('report.def.json_files') 
-        self.json_id = json_pool.create(cur_report.cursor,
-                                        cur_report.user.id,
-                                        {'name':self.json_name,
-                                         'report_id':cur_report.report.id})
-        return self.json_id
-    
-    
-    def get_file_name(self,cur_report):
-        # generate uniq Json file name 
-        today     = datetime.datetime.now()
-        time_now  = str(today.time())[0:8]
-        report_name = cur_report
-        cur_report.output_file = cur_report.env_vars['json_file_name'] + "_" + str(today.date()) + "_" + time_now 
-        json_name   = end_file(cur_report.output_file,'.json')
-        cur_report.path_json_file = cur_report.env_vars['path_json_file'] + json_name
-        return json_name
-    
-        
-    def to_file(self,cur_report):
-        
-        # Create path folder if necessary 
-        # set and write json objet 
-          
-        report_pages = collections.OrderedDict()
-        myreport     = collections.OrderedDict()
-        report_pages['Pages']  = cur_report.pages 
-        report_pages['Images'] = cur_report.images
-        myreport['Report']     = report_pages
-        
-        # Creates the file directories for managing different types of report
-        path_folder = CD_STATIC_REPORTS
-        if self.create_folder(path_folder):
-            pass 
-        
-        path_folder = path_folder + '/' + cur_report.env_vars['module_name'] + '/'
-        if self.create_folder(path_folder):
-            #folders to store html and pdf files
-            if(self.create_folder(path_folder +  cur_report.env_vars['report_name'] )):
-                self.create_folder(path_folder + cur_report.env_vars['report_name'] +'/HTML')
-                self.create_folder(path_folder + cur_report.env_vars['report_name'] +'/PDF')
-                #folder to store json files
-                path_folder = path_folder + cur_report.env_vars['report_name'] +'/JSON/'
-                if self.create_folder(path_folder):
-                    file_name = path_folder + self.json_name
-                    # Write JSON file from the object
-                    with open(file_name, 'w') as json_file:
-                        json.dump(myreport, json_file, indent=4)
-        return self.json_name
-     
-    
-    def create_folder(self, path_target):
-        try:
-            os.mkdir(path_target)
-            return True
-        except OSError:
-            pass
-            return True
+#class ao_json_xxxxxx(object):
+#    
+#    def __init__(self,cur_report):
+#        self.cur_report  = cur_report
+#        self.report_name = cur_report.report.name
+#        self.json_name   = self.get_file_name(cur_report)
+#        
+#    def save_file(self,cur_report):
+#        json_pool = cur_report.pool.get('report.def.json_files') 
+#        self.json_id = json_pool.create(cur_report.cursor,
+#                                        cur_report.user.id,
+#                                        {'name':self.json_name,
+#                                         'report_id':cur_report.report.id})
+#        return self.json_id
+#    
+#    
+#    def get_file_name(self,cur_report):
+#        # generate uniq Json file name 
+#        today     = datetime.datetime.now()
+#        time_now  = str(today.time())[0:8]
+#        report_name = cur_report
+#        cur_report.output_file = cur_report.env_vars['json_file_name'] + "_" + str(today.date()) + "_" + time_now 
+#        json_name   = end_file(cur_report.output_file,'.json')
+#        cur_report.path_json_file = cur_report.env_vars['path_json_file'] + json_name
+#        return json_name
+#    
+#        
+#    def to_file(self,cur_report):
+#        
+#        # Create path folder if necessary 
+#        # set and write json objet 
+#          
+#        report_pages = collections.OrderedDict()
+#        myreport     = collections.OrderedDict()
+#        report_pages['Pages']  = cur_report.pages 
+#        report_pages['Images'] = cur_report.images
+#        myreport['Report']     = report_pages
+#        
+#        # Creates the file directories for managing different types of report
+#        path_folder = CD_STATIC_REPORTS
+#        if self.create_folder(path_folder):
+#            pass 
+#        
+#        path_folder = path_folder + '/' + cur_report.env_vars['module_name'] + '/'
+#        if self.create_folder(path_folder):
+#            #folders to store html and pdf files
+#            if(self.create_folder(path_folder +  cur_report.env_vars['report_name'] )):
+#                self.create_folder(path_folder + cur_report.env_vars['report_name'] +'/HTML')
+#                self.create_folder(path_folder + cur_report.env_vars['report_name'] +'/PDF')
+#                #folder to store json files
+#                path_folder = path_folder + cur_report.env_vars['report_name'] +'/JSON/'
+#                if self.create_folder(path_folder):
+#                    file_name = path_folder + self.json_name
+#                    # Write JSON file from the object
+#                    with open(file_name, 'w') as json_file:
+#                        json.dump(myreport, json_file, indent=4)
+#        return self.json_name
+#     
+#    
+#    def create_folder(self, path_target):
+#        try:
+#            os.mkdir(path_target)
+#            return True
+#        except OSError:
+#            pass
+#            return True
     
 #   
 class json_to_report():
@@ -724,7 +728,9 @@ class current_report():
      print a  list of records 
     '''
     def print_record_list(self,results):
+        print 'results ', results
         all_lists = self.sort_record_list(results)
+        print 'all_lists',all_lists
         for list_record in all_lists:
             if self.report.reset_total_by_group:
                 self.cur_total.reset_totals()

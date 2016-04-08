@@ -82,17 +82,16 @@ class Template(object):
     '''
     def get_definition_report(self,def_report):
         report = self.content_html.find(id="Report")
-        try:
-            def_report['format'] = report['format'] or "Landscape"
-            def_report['name']   = report['ao-name'] or False
-            def_report['title']  = report['ao-title'] or False
-            if def_report['format'] in ['portrait','landscape']:
-                def_report['format'] = def_report['format'].title()
-            return def_report
-        except:
-            if def_report['format'] in ['portrait','landscape']:
-                def_report['format'] = def_report['format'].title()
-            return def_report
+        def_report['format'] = report.get('format',"Landscape") 
+        def_report['name']   = report.get('ao-name',"sans_nom") 
+        def_report['title']  = report.get('ao-title',"sans_titre") 
+        def_report['type']   = report.get('ao-type',"normal") 
+        def_report['viewer_type'] = report.get('ao-viewer_type',"html") 
+        
+        if def_report['format'] in ['portrait','landscape']:
+            def_report['format'] = def_report['format'].title()
+        return def_report
+        
     '''
         get the html section code
     '''
