@@ -538,10 +538,13 @@ class current_report():
         return my_template
                 
     def query_prepare(self):
-        query = self.report.query
-        query = self.str_replace_values(self.form_lst_fields,'@form',query)
-        query = self.str_replace_values(self.context_lst_fields,'@context',query)
-        return query 
+        if self.report.query:
+            query = self.report.query
+            query = self.str_replace_values(self.form_lst_fields,'@form',query)
+            query = self.str_replace_values(self.context_lst_fields,'@context',query)
+            return query 
+        else:
+            return ''
     
     def execute_query(self,lst_record = None): 
         # Execute query - if query is valid
